@@ -25,20 +25,37 @@
 - **엑셀 내보내기**: 표지, 견적서, 산출내역서(모든 금액이 수식으로 연결), 전년대비 비교표, 당해년 견적, 부대비용 시트를 만듭니다. 숨김 시트에 견적 데이터가 함께 저장되어, 이 엑셀 파일만으로 다음 해 갱신 견적을 불러올 수 있습니다.
 - **저장**: 견적은 브라우저(localStorage)에 저장되며 JSON으로 백업·불러오기가 가능합니다.
 
+## 제작자 관리 (v7.5 신규)
+
+로그인 · 사용 권한 · 관리자 페이지 · 여러 기기 동기화. 서버는 무료 **Supabase**를 씁니다. (S-Tec short estimate v1.5.0과 같은 방식)
+
+- **켜는 법:** ① Supabase 프로젝트 생성 → ② SQL Editor에서 [`server/supabase_setup.sql`](server/supabase_setup.sql) 실행(제작자 이메일 한 곳 수정) → ③ [`auth-config.json`](auth-config.json)에 Project URL · anon(publishable) 공개 키 입력, `"enabled": true` → ④ 프로그램에서 제작자 이메일로 가입하면 자동으로 **제작자(owner)**.
+- **끄는 법:** `auth-config.json` 의 `"enabled": false` — 다음 실행부터 로그인 없이 예전처럼 사용.
+- **관리자 페이지:** 상단 파란 막대 **내 계정** › 관리자 페이지 — 가입 승인, 접속 차단/해제, 사용기한, 임시 비밀번호, 강제 로그아웃, 관리자 지정(제작자만), 계정 삭제, 접속기록, 기기별 차단, 관리작업 기록, 앱 전체 잠금(점검 모드).
+- **비밀번호는 암호화(bcrypt) 저장** — 제작자도 볼 수 없습니다. 대신 임시 비밀번호 발급 → 다음 로그인 때 변경 강제.
+- **여러 기기 동기화:** 견적 보관함 · 작성 중인 견적 · 견적 담당(내 정보) · 화면 테마가 계정에 저장되어 자택 PC · 회사 PC · 휴대폰 · 태블릿에서 같게 보입니다. (갱신 견적용 고객사 원본 엑셀 파일·장비 사진·카카오맵 키는 그 기기에만 저장)
+- 안드로이드 앱은 GitHub 저장소의 최신 `auth-config.json`을 먼저 읽으므로, 로그인 켜기/끄기 때 앱을 다시 만들 필요가 없습니다.
+- anon public 키는 공개돼도 되는 키입니다. **service_role(secret) 키는 절대 저장소·앱에 넣지 마세요.**
+- 자세한 순서: [docs/S-Tec-Quotation-System_제작자관리_사용매뉴얼_v7.5.docx](docs/S-Tec-Quotation-System_제작자관리_사용매뉴얼_v7.5.docx)
+
 ## 소스 구조
 
 ```
 index.html            빌드된 단독 실행 파일 (웹 주소용)
-S-Tec-Quotation-System_v5.4.html 같은 파일 (PC 내려받기용)
+S-Tec-Quotation-System_v7.5.html 같은 파일 (PC 내려받기용)
 manifest.webmanifest, sw.js, icon-*.png  휴대폰 앱 설치(PWA)용
 src/app.html          화면·계산 엔진·엑셀 생성 코드 (템플릿)
 src/leaflet.css       지도 스타일
+src/auth.html         제작자 관리 모듈 (로그인·관리자 페이지·여러 기기 동기화)
+auth-config.json      로그인 서버 연결 설정 (제작자가 수정)
+server/               Supabase 서버 설정 SQL
+docs/                 제작자 관리 사용매뉴얼
 assets/img.json       로고·직종 그림·담당자 사진·브랜드 이미지 (base64)
 assets/intro.mp4      홈 화면 브랜드 영상 (빌드 시 파일 안에 포함)
 assets/sites.json     에스텍 사업장·지사 위치 데이터
 assets/adm.json       시·도/시·군·구/읍·면·동 경계 데이터
-vendor/               Leaflet 1.9.4, ExcelJS 4.4.0, qrcode-generator 1.4.4, SheetJS 0.18.5 core (Apache-2.0·MIT)
-tools/build.py        src + assets + vendor → index.html
+vendor/               Leaflet 1.9.4, ExcelJS 4.4.0, qrcode-generator 1.4.4, SheetJS 0.18.5 core, supabase-js 2.119.0 (Apache-2.0·MIT)
+tools/build.py        src(app.html + auth.html) + assets + vendor → index.html
 ```
 
 수정 후 다시 만들기:
@@ -109,3 +126,8 @@ python3 tools/build.py
 - v7.2: 근무 시간·패턴 조정 — 패턴을 고르면 주기의 날짜가 한 줄씩(주5일·주6일은 월~일, 12일 패턴은 1~12일차) 나오고 날마다 근무조·시작·종료·휴게를 따로 조정, 휴무·비번 날은 0시간. 근무조 기본 시간(코드표)은 접어 두고 바꾸면 그 근무조의 모든 날에 적용. 적용 후 인력 카드에 ‘근무 조건’ 요약(날짜별 색 띠, 근무조별 시각·휴게·실근로·해당 요일/일차, 월 기본·연장·야간·공휴일) 표시.
 - v7.3: 엑셀 1. 표지·2. 견적서 디자인 정리 — 표지에서 투입 인력 그림 띠를 빼고 메인 그림 바로 아래 견적 요약 표, 견적서의 투입 인력 그림을 크게(6줄 높이), 공급자 표 업태·종목 줄 높이 확대.
 - v7.4: 갱신 견적 엑셀의 당해년 산출내역서(5번 시트)를 불러온 원본 견적서의 항목(직접비·간접비·복리후생비·제비용 등)과 수식 그대로 옮겨 만듦 — 원본과 숫자·수식이 똑같음 (원본 파일이 없으면 이전 방식).
+- v7.5: **제작자 관리 기능** — 로그인·가입 승인제, 접속 차단/해제, 사용기한, 임시 비밀번호(비밀번호는 암호화 저장), 강제 로그아웃, 접속기록·기기 관리·관리작업 기록, 앱 전체 잠금(점검 모드), 하나의 아이디로 여러 기기(PC·휴대폰·태블릿) 견적 보관함·작성 중 견적·견적 담당·테마 동기화. 상단 파란 막대에 ‘내 계정’ 카드. `auth-config.json`의 `"enabled": false`(기본값)면 예전처럼 로그인 없이 사용. 제작자관리 사용매뉴얼(Word) 추가.
+
+---
+
+*Designed & Developed by Rat Rae Choi*

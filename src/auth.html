@@ -1,0 +1,735 @@
+<!-- ═══ 제작자 관리(로그인·권한·동기화) 모듈 · Designed & Developed by Rat Rae Choi ═══ -->
+<style>
+/* S-Tec-Quotation-System 제작자 관리 모듈 · Designed & Developed by Rat Rae Choi */
+body.auth-locked{overflow:hidden}
+#authGate{position:fixed;inset:0;z-index:9000;display:flex;align-items:center;justify-content:center;padding:20px;
+  background:radial-gradient(1200px 600px at 20% -10%,#2a3fa8 0,transparent 60%),linear-gradient(160deg,var(--band1,#0b1757),var(--band2,#14267e));overflow:auto}
+#authGate.hidden{display:none}
+.ag-box{width:100%;max-width:420px;background:var(--panel,#fff);color:var(--ink,#141a3a);border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,.35);padding:26px 24px 18px;margin:auto}
+.ag-brand{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+.ag-brand img{width:48px;height:48px;border-radius:12px}
+.ag-brand b{display:block;font-size:18px;font-weight:900;letter-spacing:-.2px}
+.ag-brand small{color:var(--muted,#59617f);font-size:12.5px}
+.ag-box h2{font-size:17px;margin:0 0 4px;font-weight:800}
+.ag-box p.ag-sub{margin:0 0 14px;color:var(--muted,#59617f);font-size:13.5px;line-height:1.55}
+.ag-f{display:block;margin:0 0 11px}
+.ag-f span{display:block;font-size:12.5px;font-weight:700;color:var(--muted,#59617f);margin:0 0 5px}
+.ag-f input,.ag-f select,.ag-f textarea{width:100%;box-sizing:border-box;font:inherit;font-size:15px;padding:11px 12px;border:1.5px solid var(--line,#d3d9ea);border-radius:11px;background:var(--panel2,#f5f7fc);color:var(--ink,#141a3a)}
+.ag-f input:focus{outline:none;border-color:var(--ag-acc);background:var(--panel,#fff)}
+.ag-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;width:100%;box-sizing:border-box;font:inherit;font-weight:800;font-size:15px;padding:12px 14px;border-radius:12px;border:0;cursor:pointer;background:var(--ag-acc);color:#fff;margin-top:4px}
+.ag-btn.sec{background:var(--ag-acc-soft);color:var(--ag-acc)}
+.ag-btn.red{background:var(--danger,#c53a3a)}
+.ag-btn:disabled{opacity:.55;cursor:wait}
+.ag-links{display:flex;justify-content:space-between;gap:8px;margin-top:12px;font-size:13px}
+.ag-links a{color:var(--ag-acc);font-weight:700;cursor:pointer;text-decoration:none}
+.ag-msg{display:none;margin:0 0 12px;padding:10px 12px;border-radius:10px;font-size:13.5px;line-height:1.5}
+.ag-msg.on{display:block}
+.ag-msg.err{background:#fdecec;color:#9b2222;border:1px solid var(--danger-line,#f2c9c9)}
+.ag-msg.ok{background:var(--green-soft,#e1f2e4);color:#145a24;border:1px solid var(--green-line,#c3e5cb)}
+.ag-msg.info{background:var(--amber-bg,#fff6e6);color:var(--amber-ink,#8a4b0f);border:1px solid var(--amber-line,#f5d9a8)}
+.ag-big{font-size:42px;text-align:center;margin:4px 0 8px}
+.ag-sign{text-align:center;margin-top:14px;font-size:11px;color:var(--muted,#59617f);letter-spacing:.3px}
+.ag-spin{width:34px;height:34px;border:4px solid var(--line,#d3d9ea);border-top-color:var(--ag-acc);border-radius:50%;animation:agspin .8s linear infinite;margin:18px auto}
+@keyframes agspin{to{transform:rotate(360deg)}}
+/* 헤더 계정 카드 */
+/* 공용 팝업 */
+#agPop{position:fixed;inset:0;z-index:9100;background:rgba(5,10,40,.55);display:flex;align-items:center;justify-content:center;padding:16px}
+#agPop.hidden{display:none}
+#agPop .ag-box{max-width:440px;max-height:90vh;overflow:auto}
+.ag-menu button{display:flex;align-items:center;gap:10px;width:100%;text-align:left;font:inherit;font-size:15px;font-weight:700;padding:13px 12px;border:0;border-bottom:1px solid var(--line2,#e6eaf4);background:none;color:var(--ink,#141a3a);cursor:pointer}
+.ag-menu button:hover{background:var(--panel2,#f5f7fc)}
+.ag-kv{display:grid;grid-template-columns:96px 1fr;gap:6px 10px;font-size:13.5px;margin:0 0 14px}
+.ag-kv dt{color:var(--muted,#59617f);font-weight:700}
+.ag-kv dd{margin:0;word-break:break-all}
+/* 관리자 페이지 */
+#admPanel{position:fixed;inset:0;z-index:9050;background:var(--bg,#eef1f8);color:var(--ink,#141a3a);overflow:auto}
+#admPanel.hidden{display:none}
+.adm-top{position:sticky;top:0;z-index:2;background:linear-gradient(90deg,var(--band1,#0b1757),var(--band2,#14267e));color:#fff;padding:calc(12px + var(--safe-t,0px)) 16px 0}
+.adm-top-in{max-width:1180px;margin:0 auto;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.adm-top h2{margin:0;font-size:18px;font-weight:900;flex:1;min-width:0}
+.adm-top h2 small{display:block;font-size:12px;font-weight:500;color:var(--band-muted,#b9c3ec)}
+.adm-x{font:inherit;font-weight:800;border:1px solid rgba(255,255,255,.35);background:rgba(255,255,255,.1);color:#fff;border-radius:10px;padding:8px 14px;cursor:pointer}
+.adm-tabs{max-width:1180px;margin:10px auto 0;display:flex;gap:4px;overflow-x:auto}
+.adm-tabs button{font:inherit;font-weight:800;font-size:14px;border:0;background:none;color:var(--band-muted,#b9c3ec);padding:10px 14px;border-radius:10px 10px 0 0;cursor:pointer;white-space:nowrap}
+.adm-tabs button.on{background:var(--bg,#eef1f8);color:var(--ink,#141a3a)}
+.adm-body{max-width:1180px;margin:0 auto;padding:16px 16px calc(40px + var(--safe-b,0px))}
+.adm-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin:0 0 14px}
+.adm-stat{background:var(--panel,#fff);border-radius:14px;padding:12px 14px;box-shadow:var(--shadow);cursor:pointer;border:2px solid transparent}
+.adm-stat.on{border-color:var(--ag-acc)}
+.adm-stat b{display:block;font-size:24px;font-weight:900}
+.adm-stat span{font-size:12.5px;color:var(--muted,#59617f);font-weight:700}
+.adm-tool{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px;align-items:center}
+.adm-tool input,.adm-tool select{font:inherit;font-size:14px;padding:9px 11px;border:1.5px solid var(--line,#d3d9ea);border-radius:10px;background:var(--panel,#fff);color:var(--ink,#141a3a)}
+.adm-tool input{flex:1;min-width:180px}
+.adm-sbtn{font:inherit;font-size:13px;font-weight:800;padding:7px 11px;border-radius:9px;border:1.5px solid var(--line,#d3d9ea);background:var(--panel,#fff);color:var(--ink,#141a3a);cursor:pointer;white-space:nowrap}
+.adm-sbtn.pri{background:var(--ag-acc);border-color:var(--ag-acc);color:#fff}
+.adm-sbtn.grn{background:var(--green,#1d7a30);border-color:var(--green,#1d7a30);color:#fff}
+.adm-sbtn.red{color:var(--danger,#c53a3a);border-color:var(--danger-line,#f2c9c9)}
+.adm-users{display:grid;gap:10px}
+.adm-u{background:var(--panel,#fff);border-radius:14px;box-shadow:var(--shadow);padding:13px 14px;display:grid;grid-template-columns:1fr auto;gap:8px 14px}
+.adm-u h4{margin:0;font-size:15.5px;font-weight:800}
+.adm-u h4 small{font-weight:500;color:var(--muted,#59617f);font-size:13px;margin-left:6px}
+.adm-u .meta{font-size:12.5px;color:var(--muted,#59617f);line-height:1.6}
+.adm-u .acts{grid-column:1/-1;display:flex;gap:6px;flex-wrap:wrap;padding-top:8px;border-top:1px dashed var(--line,#d3d9ea)}
+.adm-badge{display:inline-block;font-size:11.5px;font-weight:800;padding:2px 8px;border-radius:20px;margin-right:4px}
+.b-pending{background:#fff1d6;color:#8a4b0f}.b-active{background:#dff3e3;color:#145a24}.b-suspended{background:#fde3e3;color:#9b2222}
+.b-expired{background:#ececec;color:#555}.b-owner{background:#0b1757;color:#fff}.b-admin{background:#e3e8fa;color:#1530a0}.b-user{background:#f0f2f8;color:#59617f}
+.adm-tbl{width:100%;border-collapse:collapse;background:var(--panel,#fff);border-radius:14px;overflow:hidden;box-shadow:var(--shadow);font-size:13px}
+.adm-tbl th,.adm-tbl td{padding:9px 10px;border-bottom:1px solid var(--line2,#e6eaf4);text-align:left;vertical-align:top}
+.adm-tbl th{background:var(--panel2,#f5f7fc);font-size:12px;color:var(--muted,#59617f);white-space:nowrap}
+.adm-tblwrap{overflow-x:auto;border-radius:14px}
+.ev-login{color:#145a24;font-weight:800}.ev-login_fail,.ev-blocked{color:#9b2222;font-weight:800}.ev-forced{color:#8a4b0f;font-weight:800}.ev-logout{color:var(--muted,#59617f);font-weight:700}
+.adm-card{background:var(--panel,#fff);border-radius:14px;box-shadow:var(--shadow);padding:16px;margin:0 0 12px}
+.adm-card h3{margin:0 0 6px;font-size:15.5px}
+.adm-card p{margin:0 0 10px;font-size:13px;color:var(--muted,#59617f);line-height:1.6}
+.adm-sw{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:11px 0;border-bottom:1px solid var(--line2,#e6eaf4)}
+.adm-sw:last-child{border-bottom:0}
+.adm-sw b{display:block;font-size:14.5px}.adm-sw small{color:var(--muted,#59617f);font-size:12.5px}
+.adm-sw input[type=checkbox]{width:22px;height:22px;accent-color:var(--ag-acc)}
+.adm-sw input[type=number],.adm-sw input[type=text]{font:inherit;padding:8px 10px;border:1.5px solid var(--line,#d3d9ea);border-radius:9px;background:var(--panel2,#f5f7fc);color:var(--ink,#141a3a)}
+.adm-empty{text-align:center;color:var(--muted,#59617f);padding:30px 10px;font-size:14px}
+.adm-note{font-size:12.5px;color:var(--amber-ink,#8a4b0f);background:var(--amber-bg,#fff6e6);border:1px solid var(--amber-line,#f5d9a8);padding:9px 12px;border-radius:10px;margin:0 0 12px;line-height:1.55}
+.adm-sign{text-align:center;font-size:11.5px;color:var(--muted,#59617f);margin-top:24px}
+.tmp-pw{font:800 22px/1.2 ui-monospace,Consolas,monospace;letter-spacing:1px;text-align:center;padding:14px;border:2px dashed var(--ag-acc);border-radius:12px;margin:8px 0 12px;user-select:all;background:var(--panel2,#f5f7fc)}
+@media (max-width:600px){.adm-top h2{font-size:16px}.adm-top h2 small{font-size:11px}.adm-x{padding:7px 10px;font-size:13px}.adm-u{grid-template-columns:1fr}.ag-kv{grid-template-columns:82px 1fr}}
+
+/* 견적 프로그램 색상과 연결 (로그인·관리자 화면에만 적용) */
+#authGate,#agPop,#admPanel{--panel:var(--paper,#fff);--panel2:var(--field,#f8f9fc);--line2:var(--line-2,#eaeef5);--band1:#121c5c;--band2:#1b2a86;
+  --band-muted:#c3cbef;--danger:#c53a3a;--danger-line:#f2c9c9;--green:#2b8a3e;--green-line:#c3e5cb;--amber-bg:#fff6e6;--amber-ink:#8a4b0f;--amber-line:#f5d9a8;
+  --shadow:0 1px 3px rgba(16,24,64,.08),0 6px 18px rgba(16,24,64,.07);--ag-acc:#1b2a86;--ag-acc-soft:#e7eaf8;font-family:var(--f-body,inherit)}
+:root[data-theme="dark"] #authGate,:root[data-theme="dark"] #agPop,:root[data-theme="dark"] #admPanel{--ag-acc:#4a5fd6;--ag-acc-soft:#232c55;--amber-bg:#3a2617;--amber-ink:#f0c08b;--amber-line:#5a3a1f;--danger-line:#6a2b2b}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) #authGate,:root:not([data-theme="light"]) #agPop,:root:not([data-theme="light"]) #admPanel{--ag-acc:#4a5fd6;--ag-acc-soft:#232c55;--amber-bg:#3a2617;--amber-ink:#f0c08b;--amber-line:#5a3a1f;--danger-line:#6a2b2b}}
+.ag-btn:not(.sec):not(.red){background:linear-gradient(135deg,var(--ag-acc) 0%,var(--ag-acc) 60%,#1f6a46 100%)}
+.ag-brand b{color:var(--ink)}
+.ag-box{border-top:4px solid #2b8a3e}
+/* 상단 막대 '내 계정' 카드 */
+.tbacct{cursor:pointer;margin-left:10px;flex:none}
+.tbacct .qb.ac{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:18px;color:#1b2a86;background:#fff;border:2px solid rgba(255,255,255,.7)}
+.tbacct .qb.ac.off{font-size:20px;background:rgba(255,255,255,.92)}
+.tbacct .qb.ac.r-owner{background:linear-gradient(150deg,#ffffff,#d9f0df);border-color:#8FD9AE}
+.tbacct em{font-style:normal}
+.tbacct b{color:#8FD9AE}
+.acct-role{display:inline-block;font-style:normal;font-size:10px;font-weight:800;padding:1px 6px;border-radius:6px;margin-left:4px;vertical-align:1px;background:rgba(255,255,255,.2)}
+@media (max-width:640px){.tbacct{margin-left:4px}.tbacct .qb.ac{width:36px;height:36px;font-size:15px}}
+</style>
+
+<div id="authGate" class="hidden" role="dialog" aria-modal="true" aria-label="로그인"><div class="ag-box" id="agBox"></div></div>
+<div id="agPop" class="hidden" role="dialog" aria-modal="true"><div class="ag-box" id="agPopBox"></div></div>
+<div id="admPanel" class="hidden" role="dialog" aria-modal="true" aria-label="관리자 페이지"></div>
+<script id="supabase-lib">/*__SUPABASE__*/</script>
+<script>
+/* =====================================================================
+   S-Tec-Quotation-System 제작자 관리 모듈 — 로그인 · 사용 권한 · 관리자 페이지 · 여러 기기 동기화
+   Designed & Developed by Rat Rae Choi
+   ---------------------------------------------------------------------
+   ● 서버 주소·공개키는 저장소의 auth-config.json 에서 읽습니다.
+     (아래 AUTH_EMBED 에 직접 넣어도 됩니다 — 넣으면 그 값이 우선)
+   ● 비밀번호는 Supabase 서버에 암호화(bcrypt)되어 저장되므로 제작자도 볼 수 없습니다.
+     대신 관리자 페이지에서 임시 비밀번호 발급·강제 로그아웃·차단을 합니다.
+   ===================================================================== */
+(function(){
+'use strict';
+const AUTH_CREATOR = 'Rat Rae Choi';
+const AUTH_EMBED = { enabled:null, supabaseUrl:'', supabaseAnonKey:'' };
+const CFG_SOURCES = [
+  'auth-config.json',
+  'https://raw.githubusercontent.com/sadness500-boop/Quotation-System/main/auth-config.json'
+];
+const APP_NAME = 'S-Tec-Quotation-System';
+const APP_SUB  = '에스텍 그룹 용역인력 견적시스템';
+const WEB_URL  = 'https://sadness500-boop.github.io/Quotation-System/';
+const LS = { cfg:'stqs_auth_cfg', dev:'stqs_device_id', devName:'stqs_device_name', loginAt:'stqs_login_at',
+             okAt:'stqs_auth_ok_at', okUser:'stqs_auth_ok_user', meta:'stqs_sync_meta', prof:'stqs_auth_profile',
+             lastEmail:'stqs_last_email', owner:'stqs_sync_owner', reloaded:'stqs_sync_reloaded' };
+/* 여러 기기에서 똑같이 맞출 항목 — 견적 보관함 · 작성 중 견적 · 견적 담당(내 정보) · 화면 테마 */
+const SYNC_KEYS = ['stec_quotes','stec_quote_draft','stec_profile','stec_theme'];
+const KEEP_ON_SWITCH = ['stec_theme'];   /* 다른 사람이 같은 기기로 로그인해도 남겨 둘 항목 */
+const OFFLINE_GRACE_H = 24;
+const g = id => document.getElementById(id);
+const E = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const lsGet = k => { try{ return localStorage.getItem(k); }catch(e){ return null; } };
+const lsSet = (k,v) => { try{ localStorage.setItem(k,v); }catch(e){} };
+const lsDel = k => { try{ localStorage.removeItem(k); }catch(e){} };
+const jget = k => { try{ const v=lsGet(k); return v?JSON.parse(v):null; }catch(e){ return null; } };
+const tip = m => { try{ (window.toast||alert)(m); }catch(e){} };
+const fmtDT = s => { if(!s) return '-'; const d=new Date(s); if(isNaN(d)) return '-';
+  const p=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`; };
+const todayKST = () => new Date(Date.now()+9*3600e3).toISOString().slice(0,10);
+const ROLE_KO = {owner:'제작자', admin:'관리자', user:'사용자'};
+const STATUS_KO = {pending:'승인 대기', active:'사용 중', suspended:'차단'};
+const EV_KO = {login:'로그인', login_fail:'로그인 실패', logout:'로그아웃', blocked:'접속 거부', forced:'강제 로그아웃'};
+const REASON_KO = {
+  pending:['⏳','승인 대기 중','가입 신청이 접수되었습니다. 제작자(관리자)가 승인하면 바로 사용할 수 있습니다.<br>승인 후 이 화면에서 <b>다시 확인</b>을 누르세요.'],
+  suspended:['⛔','사용이 중지된 계정','이 계정은 접속이 차단되었습니다. 필요하면 제작자에게 문의하세요.'],
+  expired:['📅','사용기한 만료','사용기한이 지났습니다. 연장이 필요하면 제작자에게 요청하세요.'],
+  device_blocked:['📵','이 기기는 사용 제한','이 기기에서는 사용할 수 없도록 설정되었습니다. 다른 기기를 쓰거나 제작자에게 문의하세요.'],
+  locked:['🛠️','프로그램 점검 중',''],
+  no_profile:['❓','계정 정보 없음','계정 정보가 아직 만들어지지 않았습니다. 잠시 뒤 다시 시도하거나 제작자에게 문의하세요.'],
+  offline:['📶','인터넷 연결 필요','로그인 확인을 위해 인터넷 연결이 필요합니다. 연결 후 다시 시도하세요.'],
+  server:['⚙️','서버 설정 확인 필요','서버에서 오류가 났습니다. 제작자는 Supabase에서 <b>supabase_setup.sql</b>을 실행했는지 확인하세요.']
+};
+
+let SB=null, CFG=null, PROFILE=null, LAST_RESULT=null, recoveryMode=false;
+
+/* ---------- 기기 식별 ---------- */
+function deviceId(){ let id=lsGet(LS.dev); if(!id){ id='d-'+(crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2)+Date.now().toString(36)); lsSet(LS.dev,id);} return id; }
+function guessDevice(){
+  const u=navigator.userAgent||'';
+  if(/iPad|Macintosh.*Mobile|Tablet/i.test(u) || (/Macintosh/.test(u)&&navigator.maxTouchPoints>1)) return '태블릿';
+  if(/Android/i.test(u)) return /Mobile/i.test(u)?'안드로이드 폰':'안드로이드 태블릿';
+  if(/iPhone/i.test(u)) return '아이폰';
+  if(/Windows/i.test(u)) return 'Windows PC';
+  if(/Mac/i.test(u)) return 'Mac';
+  if(/Linux|X11|CrOS/i.test(u)) return 'PC';
+  return '기기';
+}
+function deviceName(){ return lsGet(LS.devName) || guessDevice(); }
+function ua(){ return (navigator.userAgent||'').slice(0,300); }
+
+/* ---------- 설정 읽기 ---------- */
+async function loadConfig(){
+  if(AUTH_EMBED.supabaseUrl && AUTH_EMBED.supabaseAnonKey) return {enabled:AUTH_EMBED.enabled!==false, supabaseUrl:AUTH_EMBED.supabaseUrl, supabaseAnonKey:AUTH_EMBED.supabaseAnonKey, src:'embed'};
+  const isFile = location.protocol==='file:';
+  /* 안드로이드 앱 안의 auth-config.json 은 앱을 만든 때의 사본이므로, 앱에서는 GitHub 저장소의 최신 설정을 먼저 읽음 */
+  const order = NATIVE_APP ? CFG_SOURCES.slice().reverse() : CFG_SOURCES;
+  for(const src of order){
+    if(isFile && !/^https?:/.test(src)) continue;
+    try{
+      const ctl=new AbortController(); const t=setTimeout(()=>ctl.abort(),6000);
+      const r=await fetch(src+(src.includes('?')?'&':'?')+'t='+Date.now(),{cache:'no-store',signal:ctl.signal}); clearTimeout(t);
+      if(!r.ok) continue;
+      const j=await r.json();
+      if(j && typeof j==='object'){ lsSet(LS.cfg,JSON.stringify(j)); return Object.assign({src},j); }
+    }catch(e){}
+  }
+  const c=jget(LS.cfg); if(c) return Object.assign({src:'cache'},c);
+  return null;
+}
+const cfgOn = c => !!(c && c.enabled && c.supabaseUrl && c.supabaseAnonKey && !/여기에|YOUR_|xxxx/i.test(c.supabaseUrl+c.supabaseAnonKey));
+
+/* ---------- 화면: 로그인 게이트 ---------- */
+function lock(){ document.body.classList.add('auth-locked'); g('authGate').classList.remove('hidden'); }
+function unlock(){ document.body.classList.remove('auth-locked'); g('authGate').classList.add('hidden'); }
+function brand(){ const ic=document.querySelector('#logoHome img'); return `<div class="ag-brand">${ic?`<img src="${ic.src}" alt="">`:''}<div><b>${E(APP_NAME)}</b><small>${E(APP_SUB)} · 로그인</small></div></div>`; }
+const NATIVE_APP = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+/* 메일(가입 인증·비밀번호 재설정) 링크가 돌아올 주소 — 휴대폰 앱·PC 파일로 열었을 때는 웹 주소 */
+const backUrl = () => (!NATIVE_APP && /^https?:$/.test(location.protocol) && !/^(localhost|127\.)/.test(location.hostname)) ? location.origin+location.pathname : WEB_URL;
+const SIGN = `<div class="ag-sign">Designed &amp; Developed by ${AUTH_CREATOR}</div>`;
+function msg(type,html){ const m=g('agMsg'); if(!m) return; m.className='ag-msg on '+type; m.innerHTML=html; }
+function busy(btn,on,label){ if(!btn) return; btn.disabled=on; if(label) btn.textContent=label; }
+
+function viewLoading(text){ lock(); g('agBox').innerHTML = brand()+`<div class="ag-spin"></div><p class="ag-sub" style="text-align:center">${E(text||'접속 확인 중…')}</p>`+SIGN; }
+
+let PUB={signup_open:true};
+function viewLogin(note){
+  lock();
+  g('agBox').innerHTML = brand()+`
+    <h2>로그인</h2><p class="ag-sub">하나의 아이디로 자택 PC · 회사 PC · 휴대폰 · 태블릿 어디서든 같은 견적 기록을 씁니다.</p>
+    <div id="agMsg" class="ag-msg"></div>
+    <form id="agLogin" autocomplete="on">
+      <label class="ag-f"><span>아이디 (이메일)</span><input id="agEmail" type="email" inputmode="email" autocomplete="username" required placeholder="name@example.com"></label>
+      <label class="ag-f"><span>비밀번호</span><input id="agPw" type="password" autocomplete="current-password" required placeholder="비밀번호"></label>
+      <label class="ag-f"><span>이 기기 이름 (접속기록에 표시)</span><input id="agDev" type="text" maxlength="30" value="${E(deviceName())}" placeholder="예: 자택 PC, 회사 PC, 휴대폰"></label>
+      <button class="ag-btn" id="agGo" type="submit">로그인</button>
+    </form>
+    <div class="ag-links"><a id="agToSignup">${PUB.signup_open===false?'':'처음이세요? 가입 신청'}</a><a id="agToForgot">비밀번호를 잊었어요</a></div>`+SIGN;
+  if(note) msg(note[0],note[1]);
+  const last=lsGet(LS.lastEmail); if(last) g('agEmail').value=last;
+  g('agLogin').onsubmit=async e=>{ e.preventDefault(); await doLogin(); };
+  g('agToSignup').onclick=()=>{ if(PUB.signup_open!==false) viewSignup(); };
+  g('agToForgot').onclick=viewForgot;
+}
+function viewSignup(){
+  lock();
+  g('agBox').innerHTML = brand()+`
+    <h2>가입 신청</h2><p class="ag-sub">신청 후 <b>제작자가 승인</b>해야 사용할 수 있습니다. 비밀번호는 암호화되어 저장되며 제작자도 볼 수 없습니다.</p>
+    <div id="agMsg" class="ag-msg"></div>
+    <form id="agSignup">
+      <label class="ag-f"><span>이름</span><input id="suName" required maxlength="30" placeholder="홍길동"></label>
+      <label class="ag-f"><span>소속 · 부서</span><input id="suDept" maxlength="40" placeholder="예: 동부지사 영업팀"></label>
+      <label class="ag-f"><span>연락처</span><input id="suPhone" inputmode="tel" maxlength="20" placeholder="010-0000-0000"></label>
+      <label class="ag-f"><span>아이디 (이메일)</span><input id="suEmail" type="email" required autocomplete="username"></label>
+      <label class="ag-f"><span>비밀번호 (8자 이상)</span><input id="suPw" type="password" required minlength="8" autocomplete="new-password"></label>
+      <label class="ag-f"><span>비밀번호 확인</span><input id="suPw2" type="password" required minlength="8" autocomplete="new-password"></label>
+      <button class="ag-btn" id="suGo" type="submit">가입 신청</button>
+    </form>
+    <div class="ag-links"><a id="agToLogin">← 로그인으로</a><span></span></div>`+SIGN;
+  g('agToLogin').onclick=()=>viewLogin();
+  g('agSignup').onsubmit=async e=>{ e.preventDefault(); await doSignup(); };
+}
+function viewForgot(){
+  lock();
+  g('agBox').innerHTML = brand()+`
+    <h2>비밀번호를 잊었을 때</h2>
+    <p class="ag-sub">① 가입한 이메일로 <b>재설정 메일</b>을 받거나, ② 제작자(관리자)에게 <b>임시 비밀번호</b>를 요청하세요.</p>
+    <div id="agMsg" class="ag-msg"></div>
+    <label class="ag-f"><span>가입한 이메일</span><input id="fgEmail" type="email" value="${E(lsGet(LS.lastEmail)||'')}"></label>
+    <button class="ag-btn" id="fgGo">재설정 메일 보내기</button>
+    <div class="ag-links"><a id="agToLogin">← 로그인으로</a><span></span></div>`+SIGN;
+  g('agToLogin').onclick=()=>viewLogin();
+  g('fgGo').onclick=async()=>{
+    const em=g('fgEmail').value.trim(); if(!em){ msg('err','이메일을 입력하세요.'); return; }
+    busy(g('fgGo'),true,'보내는 중…');
+    const {error}=await SB.auth.resetPasswordForEmail(em,{redirectTo:backUrl()});
+    busy(g('fgGo'),false,'재설정 메일 보내기');
+    if(error) msg('err','메일을 보내지 못했습니다: '+E(error.message));
+    else msg('ok','메일을 보냈습니다. 메일의 링크를 누르면 새 비밀번호를 정하는 화면이 열립니다. (스팸함도 확인하세요)');
+  };
+}
+function viewChangePw(forced){
+  lock();
+  g('agBox').innerHTML = brand()+`
+    <h2>${forced?'새 비밀번호 정하기':'비밀번호 변경'}</h2>
+    <p class="ag-sub">${forced?'임시 비밀번호로 로그인했습니다. 계속하려면 <b>본인만 아는 새 비밀번호</b>로 바꾸세요.':'새 비밀번호를 입력하세요.'}</p>
+    <div id="agMsg" class="ag-msg"></div>
+    <label class="ag-f"><span>새 비밀번호 (8자 이상)</span><input id="cpPw" type="password" minlength="8" autocomplete="new-password"></label>
+    <label class="ag-f"><span>새 비밀번호 확인</span><input id="cpPw2" type="password" minlength="8" autocomplete="new-password"></label>
+    <button class="ag-btn" id="cpGo">비밀번호 저장</button>
+    ${forced?'':'<button class="ag-btn sec" id="cpCancel">취소</button>'}`+SIGN;
+  if(g('cpCancel')) g('cpCancel').onclick=()=>{ unlock(); };
+  g('cpGo').onclick=async()=>{
+    const a=g('cpPw').value, b=g('cpPw2').value;
+    if(a.length<8){ msg('err','8자 이상으로 입력하세요.'); return; }
+    if(a!==b){ msg('err','두 비밀번호가 다릅니다.'); return; }
+    busy(g('cpGo'),true,'저장 중…');
+    const {error}=await SB.auth.updateUser({password:a});
+    if(error){ busy(g('cpGo'),false,'비밀번호 저장'); msg('err','저장하지 못했습니다: '+E(error.message)); return; }
+    try{ await SB.rpc('mark_pw_changed'); }catch(e){}
+    recoveryMode=false;
+    lsSet(LS.loginAt,new Date().toISOString());
+    tip('비밀번호를 바꿨습니다');
+    await checkin('resume');
+  };
+}
+function viewBlocked(reason, extra){
+  lock();
+  const r=REASON_KO[reason]||['⚠️','사용할 수 없음','사용 권한을 확인할 수 없습니다.'];
+  let body=r[2];
+  if(reason==='locked') body=E(extra&&extra.lock_message||'점검 중입니다.');
+  if(reason==='server' && extra&&extra.detail) body+=`<br><small>${E(extra.detail)}</small>`;
+  if(reason==='expired' && extra&&extra.profile&&extra.profile.expires_at) body+=`<br>사용기한: <b>${E(extra.profile.expires_at)}</b>`;
+  const who = extra&&extra.profile ? `<p class="ag-sub" style="text-align:center">${E(extra.profile.name||'')} · ${E(extra.profile.email||'')}</p>`:'';
+  g('agBox').innerHTML = brand()+`<div class="ag-big">${r[0]}</div><h2 style="text-align:center">${r[1]}</h2>${who}
+    <div class="ag-msg on info" style="text-align:center">${body}</div>
+    <button class="ag-btn" id="bkRetry">다시 확인</button>
+    <button class="ag-btn sec" id="bkOut">${reason==='offline'?'다른 계정으로 로그인':'로그아웃'}</button>`+SIGN;
+  g('bkRetry').onclick=()=>boot(true);
+  g('bkOut').onclick=()=>logout(true);
+}
+
+/* ---------- 동작: 로그인 / 가입 / 로그아웃 ---------- */
+function errKo(m){
+  m=String(m||'');
+  if(/Invalid login credentials/i.test(m)) return '이메일 또는 비밀번호가 맞지 않습니다.';
+  if(/Email not confirmed/i.test(m)) return '이메일 인증이 아직 안 되었습니다. 메일함에서 인증 링크를 먼저 누르세요.';
+  if(/already registered|already exists/i.test(m)) return '이미 가입된 이메일입니다. 로그인하거나 비밀번호 찾기를 이용하세요.';
+  if(/Password should be/i.test(m)) return '비밀번호가 너무 짧거나 단순합니다.';
+  if(/rate limit|too many/i.test(m)) return '시도가 너무 많습니다. 잠시 후 다시 해 주세요.';
+  if(/fetch|network/i.test(m)) return '인터넷 연결을 확인하세요.';
+  return m;
+}
+async function doLogin(){
+  const em=g('agEmail').value.trim().toLowerCase(), pw=g('agPw').value, dn=g('agDev').value.trim();
+  if(dn) lsSet(LS.devName,dn);
+  const btn=g('agGo'); busy(btn,true,'확인 중…');
+  const {error}=await SB.auth.signInWithPassword({email:em,password:pw});
+  if(error){
+    busy(btn,false,'로그인'); msg('err',E(errKo(error.message)));
+    if(/Invalid login/i.test(error.message)) { try{ await SB.rpc('log_login_fail',{p_email:em,p_device:deviceId(),p_device_name:deviceName()}); }catch(e){} }
+    return;
+  }
+  lsSet(LS.lastEmail,em);
+  lsSet(LS.loginAt,new Date().toISOString());
+  await checkin('login');
+}
+async function doSignup(){
+  const name=g('suName').value.trim(), dept=g('suDept').value.trim(), phone=g('suPhone').value.trim();
+  const em=g('suEmail').value.trim().toLowerCase(), pw=g('suPw').value, pw2=g('suPw2').value;
+  if(pw!==pw2){ msg('err','두 비밀번호가 다릅니다.'); return; }
+  const btn=g('suGo'); busy(btn,true,'신청 중…');
+  const {data,error}=await SB.auth.signUp({email:em,password:pw,options:{data:{name,dept,phone},emailRedirectTo:backUrl()}});
+  busy(btn,false,'가입 신청');
+  if(error){ msg('err',E(errKo(error.message))); return; }
+  lsSet(LS.lastEmail,em);
+  if(data && data.session){ lsSet(LS.loginAt,new Date().toISOString()); await checkin('login'); }
+  else viewLogin(['ok','가입 신청이 접수되었습니다. <b>메일함의 인증 링크</b>를 먼저 누른 뒤 로그인하세요. 제작자가 승인하면 사용할 수 있습니다.']);
+}
+async function logout(showLogin){
+  try{ if(SB){ await SB.rpc('log_logout',{p_device:deviceId(),p_device_name:deviceName()}); await SB.auth.signOut({scope:'local'}); } }catch(e){}
+  PROFILE=null; lsDel(LS.okAt); lsDel(LS.okUser); lsDel(LS.loginAt); lsDel(LS.prof);
+  renderAcct(); closePop(); closeAdmin();
+  if(showLogin!==false) viewLogin(['info','로그아웃했습니다.']);
+}
+
+/* ---------- 접속 확인 (서버에 물어봄) ---------- */
+async function checkin(event){
+  let res;
+  try{
+    const {data,error}=await SB.rpc('client_checkin',{p_device:deviceId(),p_device_name:deviceName(),p_ua:ua(),p_event:event,p_login_at:lsGet(LS.loginAt)||null});
+    if(error) throw error; res=data;
+  }catch(e){
+    const em=String(e&&e.message||e);
+    if(!/fetch|network|load failed|timeout|abort/i.test(em) && navigator.onLine!==false){ viewBlocked('server',{detail:em}); return false; }
+    const okAt=+lsGet(LS.okAt)||0, prof=jget(LS.prof);
+    if(prof && Date.now()-okAt < OFFLINE_GRACE_H*3600e3){ PROFILE=prof; renderAcct('오프라인'); unlock(); return true; }
+    viewBlocked('offline'); return false;
+  }
+  LAST_RESULT=res;
+  if(res && res.ok){
+    PROFILE=res.profile; lsSet(LS.prof,JSON.stringify(PROFILE)); lsSet(LS.okAt,String(Date.now())); lsSet(LS.okUser,PROFILE.id);
+    if(PROFILE.must_change_pw || recoveryMode){ viewChangePw(!recoveryMode); return false; }
+    renderAcct(); unlock();
+    if(event==='login'||event==='boot') await syncPull(event==='login');
+    return true;
+  }
+  const reason=res&&res.reason||'no_profile';
+  if(reason==='forced'||reason==='no_session'){
+    try{ await SB.auth.signOut({scope:'local'}); }catch(e){}
+    lsDel(LS.okAt); lsDel(LS.prof); PROFILE=null; renderAcct();
+    viewLogin(reason==='forced'?['info','관리자 요청으로 로그아웃되었습니다. 다시 로그인하세요.']:null);
+    return false;
+  }
+  PROFILE=null; lsDel(LS.okAt); lsDel(LS.prof); renderAcct();
+  viewBlocked(reason,res); return false;
+}
+
+/* ---------- 여러 기기 동기화 ---------- */
+let pushTimers={}, syncState='', applying=false;
+const meta = () => jget(LS.meta)||{};
+function setMeta(k,ts){ const m=meta(); m[k]=ts; lsSet(LS.meta,JSON.stringify(m)); }
+/* 견적 프로그램은 localStorage 에 바로 저장하므로, 저장소(Storage) 단계에서 동기화 항목 변경을 감지 */
+function hookStore(){
+  const SP = window.Storage && Storage.prototype; if(!SP || SP.setItem.__stqs) return;
+  const oSet=SP.setItem, oDel=SP.removeItem;
+  const touched = (st,k) => { try{ if(!applying && st===window.localStorage && SYNC_KEYS.includes(String(k))){ setMeta(String(k),new Date().toISOString()); schedulePush(String(k)); } }catch(e){} };
+  SP.setItem=function(k,v){ const r=oSet.call(this,k,v); touched(this,k); return r; };
+  SP.removeItem=function(k){ const r=oDel.call(this,k); touched(this,k); return r; };
+  SP.setItem.__stqs=true;
+}
+function schedulePush(k){ if(!PROFILE||!SB) return; clearTimeout(pushTimers[k]); pushTimers[k]=setTimeout(()=>pushKey(k),1500); }
+async function pushKey(k){
+  if(!PROFILE||!SB) return;
+  const v=lsGet(k);   /* 저장된 글자 그대로 올림(JSON·일반 글자 모두) — null 이면 삭제로 동기화 */
+  const {data,error}=await SB.rpc('sync_push',{p_k:k,p_v:v,p_device:deviceId()});
+  if(!error){ setMeta(k,data); syncState='동기화 '+fmtDT(new Date()).slice(11); renderAcct(); }
+  else { syncState='동기화 대기'; renderAcct(); }
+}
+async function syncPull(isLogin){
+  const {data,error}=await SB.rpc('sync_pull'); if(error||!Array.isArray(data)) return;
+  const cloud={}; data.forEach(r=>cloud[r.k]=r);
+  let changed=false;
+  applying=true;
+  const owner=lsGet(LS.owner);
+  if(owner && owner!==PROFILE.id){            /* 같은 기기에서 다른 사람이 로그인 → 이전 사람 기록은 화면에서 지움(서버에는 남아 있음) */
+    SYNC_KEYS.filter(k=>!KEEP_ON_SWITCH.includes(k)).forEach(k=>lsDel(k)); lsDel(LS.meta); changed=true;
+  }
+  lsSet(LS.owner,PROFILE.id);
+  const m=meta();
+  for(const k of SYNC_KEYS){
+    const c=cloud[k], localTs=m[k]?Date.parse(m[k]):0, hasLocal=lsGet(k)!=null;
+    if(c && (!hasLocal || Date.parse(c.updated_at)>localTs)){
+      if(c.v===null) lsDel(k); else lsSet(k, typeof c.v==='string' ? c.v : JSON.stringify(c.v));
+      setMeta(k,c.updated_at); changed=true;
+    }
+  }
+  applying=false;
+  for(const k of SYNC_KEYS){ const c=cloud[k]; if(lsGet(k)!=null && (!c || Date.parse(meta()[k]||0)>Date.parse(c.updated_at))) await pushKey(k); }
+  syncState='동기화 '+fmtDT(new Date()).slice(11); renderAcct();
+  if(changed && !sessionStorage.getItem(LS.reloaded)){
+    sessionStorage.setItem(LS.reloaded,'1');
+    tip('다른 기기의 기록을 불러왔습니다'); setTimeout(()=>location.reload(),400);
+  } else sessionStorage.removeItem(LS.reloaded);
+}
+
+/* ---------- 헤더 계정 카드 ---------- */
+/* 상단 파란 막대 — 주간/야간/시스템 버튼 바로 왼쪽 (홈·견적 화면 모두 보임) */
+function renderAcct(note){
+  let c=g('acctCard');
+  const bar=document.querySelector('header.topbar'); if(!bar) return;
+  if(!c){ c=document.createElement('button'); c.type='button'; c.id='acctCard'; c.className='tbq tbacct'; c.setAttribute('aria-label','내 계정');
+    bar.insertBefore(c,g('themeSeg')||null); c.onclick=openAcctMenu; }
+  const card=(ph,cls,t1,t2,t3)=>`<span class="qb ac ${cls}">${ph}</span><span>${t1}<b>${t2}</b>${t3}</span>`;
+  if(!cfgOn(CFG)){ c.title='로그인 기능 설정 전 — 눌러서 안내 보기'; c.innerHTML=card('🔓','off','계정','로그인 설정 전','눌러서 안내 보기'); return; }
+  if(!PROFILE){ c.title='로그인이 필요합니다'; c.innerHTML=card('👤','off','계정','로그인 필요','눌러서 로그인'); return; }
+  const ini=(PROFILE.name||PROFILE.email||'?').trim().slice(0,1);
+  c.title=`${PROFILE.name||''} ${PROFILE.email} · ${ROLE_KO[PROFILE.role]||''}`;
+  c.innerHTML=card(E(ini),'r-'+E(PROFILE.role),`<em>내 계정<i class="acct-role">${E(ROLE_KO[PROFILE.role]||'')}</i></em>`,E(PROFILE.name||PROFILE.email),E(note||syncState||deviceName()));
+}
+function pop(html){ g('agPopBox').innerHTML=html+SIGN; g('agPop').classList.remove('hidden'); }
+function closePop(){ g('agPop').classList.add('hidden'); g('agPopBox').innerHTML=''; }
+g('agPop').addEventListener('click',e=>{ if(e.target.id==='agPop') closePop(); });
+function openAcctMenu(){
+  if(!cfgOn(CFG)){
+    pop(`<h2>로그인 기능 설정 전</h2><p class="ag-sub">지금은 누구나 바로 쓰는 상태입니다. 제작자가 <b>Supabase 서버</b>를 만들고 저장소의 <b>auth-config.json</b>에 주소·공개키를 넣고 <code>"enabled": true</code> 로 바꾸면, 다음 실행부터 로그인·승인·차단·여러 기기 동기화가 켜집니다.<br><br>자세한 순서는 <b>제작자 관리 사용매뉴얼</b>을 보세요.</p><button class="ag-btn sec" id="ppClose">닫기</button>`);
+    g('ppClose').onclick=closePop; return;
+  }
+  if(!PROFILE){ viewLogin(); return; }
+  const isAdm = PROFILE.role==='owner'||PROFILE.role==='admin';
+  pop(`<h2>내 계정</h2>
+    <dl class="ag-kv"><dt>이름</dt><dd>${E(PROFILE.name||'-')}</dd><dt>아이디</dt><dd>${E(PROFILE.email)}</dd>
+      <dt>역할</dt><dd>${E(ROLE_KO[PROFILE.role])}</dd><dt>사용기한</dt><dd>${E(PROFILE.expires_at||'무기한')}</dd>
+      <dt>이 기기</dt><dd>${E(deviceName())}</dd><dt>동기화</dt><dd>${E(syncState||'-')}</dd></dl>
+    <div class="ag-menu">
+      ${isAdm?'<button id="mnAdmin">🛡️ 관리자 페이지 (사용자 · 접속기록 · 기기 · 설정)</button>':''}
+      <button id="mnSync">🔄 지금 동기화</button>
+      <button id="mnProfile">✏️ 내 정보 수정</button>
+      <button id="mnPw">🔑 비밀번호 변경</button>
+      <button id="mnOut">🚪 로그아웃</button>
+    </div>`);
+  if(g('mnAdmin')) g('mnAdmin').onclick=()=>{ closePop(); openAdmin(); };
+  g('mnSync').onclick=async()=>{ closePop(); await syncPull(false); for(const k of SYNC_KEYS) if(lsGet(k)!=null) await pushKey(k); tip('동기화했습니다'); };
+  g('mnPw').onclick=()=>{ closePop(); viewChangePw(false); };
+  g('mnOut').onclick=()=>logout(true);
+  g('mnProfile').onclick=()=>{
+    pop(`<h2>내 정보 수정</h2>
+      <label class="ag-f"><span>이름</span><input id="mpName" value="${E(PROFILE.name)}"></label>
+      <label class="ag-f"><span>소속 · 부서</span><input id="mpDept" value="${E(PROFILE.dept||'')}"></label>
+      <label class="ag-f"><span>연락처</span><input id="mpPhone" value="${E(PROFILE.phone||'')}"></label>
+      <label class="ag-f"><span>이 기기 이름</span><input id="mpDev" value="${E(deviceName())}"></label>
+      <button class="ag-btn" id="mpGo">저장</button><button class="ag-btn sec" id="mpX">취소</button>`);
+    g('mpX').onclick=closePop;
+    g('mpGo').onclick=async()=>{
+      lsSet(LS.devName,g('mpDev').value.trim()||guessDevice());
+      const {error}=await SB.rpc('update_my_profile',{p_name:g('mpName').value.trim(),p_phone:g('mpPhone').value.trim(),p_dept:g('mpDept').value.trim()});
+      if(error){ tip('저장 실패: '+error.message); return; }
+      closePop(); await checkin('resume'); tip('저장했습니다');
+    };
+  };
+}
+
+/* =====================================================================
+   관리자 페이지
+   ===================================================================== */
+let ADM={tab:'users', users:[], filter:'all', q:'', logUser:'', devices:[], settings:null};
+function closeAdmin(){ g('admPanel').classList.add('hidden'); g('admPanel').innerHTML=''; document.body.classList.remove('auth-locked'); }
+function admErr(e){ tip('처리하지 못했습니다: '+(e&&e.message||e)); }
+async function openAdmin(tab){
+  if(!PROFILE||!['owner','admin'].includes(PROFILE.role)) return;
+  ADM.tab=tab||ADM.tab;
+  const p=g('admPanel'); p.classList.remove('hidden'); document.body.classList.add('auth-locked');
+  p.innerHTML=`<div class="adm-top"><div class="adm-top-in"><h2>🛡️ 관리자 페이지<small>${E(PROFILE.name||PROFILE.email)} · ${E(ROLE_KO[PROFILE.role])} — ${E(APP_NAME)}</small></h2>
+      <button class="adm-x" id="admRefresh">새로고침</button><button class="adm-x" id="admClose">✕ 닫기</button></div>
+    <div class="adm-tabs" id="admTabs">
+      <button data-t="users">👥 사용자</button><button data-t="logs">🕘 접속기록</button><button data-t="devices">💻 기기</button>
+      <button data-t="alogs">📝 관리작업</button><button data-t="settings">⚙️ 앱 설정</button></div></div>
+    <div class="adm-body" id="admBody"><div class="ag-spin"></div></div>`;
+  g('admClose').onclick=closeAdmin;
+  g('admRefresh').onclick=()=>admTab(ADM.tab);
+  g('admTabs').querySelectorAll('button').forEach(b=>b.onclick=()=>admTab(b.dataset.t));
+  admTab(ADM.tab);
+}
+async function admTab(t){
+  ADM.tab=t;
+  g('admTabs').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.t===t));
+  const body=g('admBody'); body.innerHTML='<div class="ag-spin"></div>';
+  try{
+    if(t==='users') await admUsers();
+    else if(t==='logs') await admLogs();
+    else if(t==='devices') await admDevices();
+    else if(t==='alogs') await admAlogs();
+    else await admSettings();
+  }catch(e){ body.innerHTML=`<div class="adm-empty">불러오지 못했습니다: ${E(e.message||e)}</div>`; }
+  body.insertAdjacentHTML('beforeend',`<div class="adm-sign">Designed &amp; Developed by ${AUTH_CREATOR}</div>`);
+}
+const isExpired = u => u.expires_at && u.expires_at < todayKST();
+function badge(u){
+  const st = isExpired(u)&&u.status==='active' ? `<span class="adm-badge b-expired">기한 만료</span>` : `<span class="adm-badge b-${u.status}">${STATUS_KO[u.status]}</span>`;
+  return st+`<span class="adm-badge b-${u.role}">${ROLE_KO[u.role]}</span>`;
+}
+async function admUsers(){
+  const {data,error}=await SB.rpc('admin_list_users'); if(error) throw error;
+  ADM.users=data||[]; drawUsers();
+}
+function drawUsers(){
+  const U=ADM.users, me=PROFILE;
+  const cnt={all:U.length,pending:U.filter(u=>u.status==='pending').length,active:U.filter(u=>u.status==='active'&&!isExpired(u)).length,
+             suspended:U.filter(u=>u.status==='suspended').length,expired:U.filter(u=>u.status==='active'&&isExpired(u)).length};
+  const f=ADM.filter, q=ADM.q.toLowerCase();
+  const list=U.filter(u=>(f==='all'||(f==='expired'?(u.status==='active'&&isExpired(u)):f==='active'?(u.status==='active'&&!isExpired(u)):u.status===f))
+    && (!q || [u.name,u.email,u.dept,u.phone,u.memo].join(' ').toLowerCase().includes(q)));
+  const canTouch = u => u.role!=='owner' && (u.role!=='admin' || me.role==='owner');
+  const body=g('admBody');
+  body.innerHTML=`
+    <div class="adm-stats">${[['all','전체'],['pending','승인 대기'],['active','사용 중'],['suspended','차단'],['expired','기한 만료']].map(([k,n])=>
+      `<div class="adm-stat ${f===k?'on':''}" data-f="${k}"><b>${cnt[k]}</b><span>${n}</span></div>`).join('')}</div>
+    <div class="adm-note">🔒 비밀번호는 서버에 <b>암호화되어 저장</b>되므로 제작자·관리자도 볼 수 없습니다(개인정보 보호 기준). 비밀번호를 잊은 직원에게는 <b>임시 비밀번호 발급</b>을 쓰세요 — 그 직원은 다음 로그인 때 새 비밀번호로 바꾸게 됩니다.</div>
+    <div class="adm-tool"><input id="admQ" placeholder="이름 · 이메일 · 부서 · 메모 검색" value="${E(ADM.q)}"></div>
+    <div class="adm-users">${list.length?list.map(u=>`
+      <div class="adm-u" data-id="${u.id}">
+        <div><h4>${E(u.name||'(이름 없음)')}<small>${E(u.email)}</small></h4>
+          <div class="meta">${badge(u)} ${u.dept?'· '+E(u.dept):''} ${u.phone?'· '+E(u.phone):''}<br>
+            가입 ${fmtDT(u.created_at)} · 마지막 로그인 <b>${fmtDT(u.last_login_at)}</b> · 최근 사용 ${fmtDT(u.last_seen_at)}<br>
+            사용기한 <b>${E(u.expires_at||'무기한')}</b> · 기기 ${u.device_count}대 ${u.fail_7d>0?`· <span style="color:#9b2222;font-weight:800">7일간 로그인 실패 ${u.fail_7d}회</span>`:''}
+            ${u.must_change_pw?' · <span style="color:#8a4b0f;font-weight:800">임시 비밀번호 사용 중</span>':''}
+            ${u.memo?`<br>📝 ${E(u.memo)}`:''}</div></div>
+        <div></div>
+        <div class="acts">${canTouch(u)?`
+          ${u.status!=='active'?`<button class="adm-sbtn grn" data-a="${u.status==='pending'?'approve':'activate'}">✅ ${u.status==='pending'?'승인':'차단 해제'}</button>`:''}
+          ${u.status==='active'?`<button class="adm-sbtn red" data-a="suspend">⛔ 접속 차단</button>`:''}
+          <button class="adm-sbtn" data-a="expires">📅 사용기한</button>
+          <button class="adm-sbtn" data-a="temp_pw">🔑 임시 비밀번호</button>
+          <button class="adm-sbtn" data-a="force_logout">🚪 강제 로그아웃</button>
+          <button class="adm-sbtn" data-a="devices">💻 기기</button>
+          <button class="adm-sbtn" data-a="logs">🕘 접속기록</button>
+          ${me.role==='owner'?`<button class="adm-sbtn" data-a="role">👑 ${u.role==='admin'?'관리자 해제':'관리자로 지정'}</button>`:''}
+          <button class="adm-sbtn" data-a="memo">📝 메모</button>
+          ${me.role==='owner'?`<button class="adm-sbtn red" data-a="delete">🗑 계정 삭제</button>`:''}`
+          :`<span class="meta">${u.role==='owner'?'제작자 계정 — 보호됨 (변경 불가)':'관리자 계정 — 제작자만 변경할 수 있습니다'}</span>
+            <button class="adm-sbtn" data-a="logs">🕘 접속기록</button><button class="adm-sbtn" data-a="devices">💻 기기</button>`}
+        </div></div>`).join(''):'<div class="adm-empty">해당하는 사용자가 없습니다.</div>'}</div>`;
+  body.querySelectorAll('.adm-stat').forEach(s=>s.onclick=()=>{ ADM.filter=s.dataset.f; drawUsers(); });
+  const qi=g('admQ'); qi.oninput=()=>{ ADM.q=qi.value; const pos=qi.selectionStart; drawUsers(); const n=g('admQ'); n.focus(); n.setSelectionRange(pos,pos); };
+  body.querySelectorAll('.adm-u').forEach(card=>{
+    const u=ADM.users.find(x=>x.id===card.dataset.id);
+    card.querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>userAction(u,b.dataset.a));
+  });
+}
+async function upd(u,action,value,okMsg){
+  const {error}=await SB.rpc('admin_update_user',{p_user:u.id,p_action:action,p_value:value==null?null:String(value)});
+  if(error){ admErr(error); return false; }
+  tip(okMsg||'처리했습니다'); await admUsers(); return true;
+}
+function randPw(){ const cs='ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789'; const a=new Uint32Array(10); crypto.getRandomValues(a); return Array.from(a,x=>cs[x%cs.length]).join('').replace(/^(.{4})(.{3})/,'$1-$2'); }
+async function userAction(u,a){
+  const who=`${u.name||''} (${u.email})`;
+  if(a==='approve') return upd(u,'approve',null,`${u.name||u.email} 님을 승인했습니다`);
+  if(a==='activate') return upd(u,'activate',null,'차단을 해제했습니다');
+  if(a==='suspend'){ if(confirmBox(`${who}\n\n접속을 차단할까요? 쓰고 있는 모든 기기에서 즉시(최대 5분 안에) 로그아웃됩니다.`)) return upd(u,'suspend',null,'접속을 차단했습니다'); return; }
+  if(a==='force_logout'){ if(confirmBox(`${who}\n\n모든 기기에서 로그아웃시킬까요? (계정은 그대로, 다시 로그인하면 사용 가능)`)) return upd(u,'force_logout',null,'강제 로그아웃했습니다'); return; }
+  if(a==='delete'){ if(confirmBox(`${who}\n\n계정과 동기화된 기록을 완전히 삭제합니다. 되돌릴 수 없습니다. 삭제할까요?`)) return upd(u,'delete',null,'계정을 삭제했습니다'); return; }
+  if(a==='role') return upd(u,'role',u.role==='admin'?'user':'admin',u.role==='admin'?'관리자에서 해제했습니다':'관리자로 지정했습니다');
+  if(a==='logs'){ ADM.logUser=u.id; return admTab('logs'); }
+  if(a==='devices'){ ADM.devUser=u.id; return admTab('devices'); }
+  if(a==='memo'){
+    pop(`<h2>메모</h2><p class="ag-sub">${E(who)}</p><label class="ag-f"><span>관리용 메모 (본인에게 보이지 않음)</span><textarea id="mmT" rows="3">${E(u.memo||'')}</textarea></label>
+      <button class="ag-btn" id="mmGo">저장</button><button class="ag-btn sec" id="mmX">취소</button>`);
+    g('mmX').onclick=closePop;
+    const t=g('mmT'); g('mmGo').onclick=async()=>{ const v=t.value; closePop(); await upd(u,'memo',v,'메모를 저장했습니다'); };
+    return;
+  }
+  if(a==='expires'){
+    const addDays=n=>{ const d=new Date(Date.now()+9*3600e3); d.setUTCDate(d.getUTCDate()+n); return d.toISOString().slice(0,10); };
+    pop(`<h2>사용기한 설정</h2><p class="ag-sub">${E(who)}<br>정한 날짜까지 사용할 수 있고, 다음 날부터 자동으로 막힙니다.</p>
+      <label class="ag-f"><span>사용기한 (이 날까지)</span><input id="exD" type="date" value="${E(u.expires_at||'')}"></label>
+      <div class="adm-tool">${[[7,'+1주'],[30,'+1개월'],[90,'+3개월'],[180,'+6개월'],[365,'+1년']].map(([n,l])=>`<button class="adm-sbtn" data-d="${n}">${l}</button>`).join('')}</div>
+      <button class="ag-btn" id="exGo">저장</button><button class="ag-btn sec" id="exNo">무기한으로</button><button class="ag-btn sec" id="exX">취소</button>`);
+    g('agPopBox').querySelectorAll('[data-d]').forEach(b=>b.onclick=()=>{ g('exD').value=addDays(+b.dataset.d); });
+    g('exX').onclick=closePop;
+    g('exNo').onclick=async()=>{ closePop(); await upd(u,'expires','', '무기한으로 바꿨습니다'); };
+    g('exGo').onclick=async()=>{ const v=g('exD').value; if(!v){ tip('날짜를 고르세요'); return; } closePop(); await upd(u,'expires',v,`사용기한을 ${v}로 정했습니다`); };
+    return;
+  }
+  if(a==='temp_pw'){
+    const pw=randPw();
+    pop(`<h2>임시 비밀번호 발급</h2><p class="ag-sub">${E(who)}<br>아래 임시 비밀번호로 바꾸고, 쓰던 기기는 모두 로그아웃됩니다. 직원은 이 비밀번호로 로그인한 뒤 <b>새 비밀번호로 바꿔야</b> 계속 쓸 수 있습니다.</p>
+      <label class="ag-f"><span>임시 비밀번호 (직접 바꿔도 됨, 8자 이상)</span><input id="tpV" value="${pw}"></label>
+      <button class="ag-btn" id="tpGo">발급하기</button><button class="ag-btn sec" id="tpX">취소</button>`);
+    g('tpX').onclick=closePop;
+    g('tpGo').onclick=async()=>{
+      const v=g('tpV').value.trim(); if(v.length<8){ tip('8자 이상'); return; }
+      busy(g('tpGo'),true,'발급 중…');
+      const {error}=await SB.rpc('admin_set_temp_password',{p_user:u.id,p_password:v});
+      if(error){ busy(g('tpGo'),false,'발급하기'); admErr(error); return; }
+      pop(`<h2>임시 비밀번호가 발급되었습니다</h2><p class="ag-sub">${E(who)} 님에게 전달하세요. 이 창을 닫으면 다시 볼 수 없습니다.</p>
+        <div class="tmp-pw">${E(v)}</div><button class="ag-btn" id="tpCopy">복사</button><button class="ag-btn sec" id="tpDone">닫기</button>`);
+      g('tpCopy').onclick=()=>{ try{ navigator.clipboard.writeText(v); tip('복사했습니다'); }catch(e){} };
+      g('tpDone').onclick=closePop; admUsers();
+    };
+  }
+}
+function confirmBox(t){ try{ return window.confirm(t); }catch(e){ return true; } }
+
+async function admLogs(){
+  if(!ADM.users.length){ const r=await SB.rpc('admin_list_users'); ADM.users=r.data||[]; }
+  const {data,error}=await SB.rpc('admin_list_logs',{p_user:ADM.logUser||null,p_limit:500}); if(error) throw error;
+  const rows=data||[];
+  g('admBody').innerHTML=`
+    <div class="adm-tool"><select id="lgU"><option value="">전체 사용자</option>${ADM.users.map(u=>`<option value="${u.id}" ${ADM.logUser===u.id?'selected':''}>${E(u.name||'')} · ${E(u.email)}</option>`).join('')}</select>
+      <select id="lgE"><option value="">모든 기록</option>${Object.entries(EV_KO).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select>
+      <span class="meta" style="font-size:12.5px;color:var(--muted)">최근 500건 · 서버에 계속 보관됩니다</span></div>
+    <div class="adm-tblwrap"><table class="adm-tbl"><thead><tr><th>일시</th><th>사용자</th><th>기록</th><th>기기</th><th>IP</th><th>비고</th></tr></thead>
+    <tbody id="lgB"></tbody></table></div>`;
+  const draw=()=>{ const ev=g('lgE').value; const R=rows.filter(r=>!ev||r.event===ev);
+    g('lgB').innerHTML=R.length?R.map(r=>`<tr><td style="white-space:nowrap">${fmtDT(r.created_at)}</td><td>${E(r.email)}</td><td class="ev-${E(r.event)}">${E(EV_KO[r.event]||r.event)}</td><td>${E(r.device)}</td><td>${E(r.ip)}</td><td>${E(REASON_KO[r.detail]?REASON_KO[r.detail][1]:r.detail)}</td></tr>`).join(''):'<tr><td colspan="6" class="adm-empty">기록이 없습니다</td></tr>'; };
+  draw(); g('lgE').onchange=draw;
+  g('lgU').onchange=()=>{ ADM.logUser=g('lgU').value; admTab('logs'); };
+}
+async function admDevices(){
+  const {data,error}=await SB.rpc('admin_list_devices',{p_user:ADM.devUser||null}); if(error) throw error;
+  const rows=data||[];
+  g('admBody').innerHTML=`
+    <div class="adm-note">💻 직원이 로그인한 기기 목록입니다. 휴대폰 분실 등으로 <b>특정 기기만</b> 막으려면 "이 기기 차단"을 누르세요(계정은 다른 기기에서 계속 사용 가능).</div>
+    <div class="adm-tool">${ADM.devUser?`<button class="adm-sbtn" id="dvAll">← 전체 기기 보기</button>`:''}</div>
+    <div class="adm-tblwrap"><table class="adm-tbl"><thead><tr><th>사용자</th><th>기기 이름</th><th>처음 사용</th><th>마지막 사용</th><th>IP</th><th>상태</th><th></th></tr></thead><tbody>
+    ${rows.length?rows.map((d,i)=>`<tr><td>${E(d.user_name||'')}<br><small>${E(d.email)}</small></td><td>${E(d.name||'-')}<br><small style="color:var(--muted)">${E((d.ua||'').slice(0,60))}</small></td>
+      <td style="white-space:nowrap">${fmtDT(d.first_seen)}</td><td style="white-space:nowrap">${fmtDT(d.last_seen)}</td><td>${E(d.last_ip)}</td>
+      <td>${d.blocked?'<span class="adm-badge b-suspended">차단</span>':'<span class="adm-badge b-active">허용</span>'}</td>
+      <td><button class="adm-sbtn ${d.blocked?'grn':'red'}" data-i="${i}">${d.blocked?'차단 해제':'이 기기 차단'}</button></td></tr>`).join(''):'<tr><td colspan="7" class="adm-empty">기기 기록이 없습니다</td></tr>'}
+    </tbody></table></div>`;
+  if(g('dvAll')) g('dvAll').onclick=()=>{ ADM.devUser=''; admTab('devices'); };
+  g('admBody').querySelectorAll('[data-i]').forEach(b=>b.onclick=async()=>{
+    const d=rows[+b.dataset.i];
+    const {error}=await SB.rpc('admin_set_device_block',{p_user:d.user_id,p_device:d.id,p_blocked:!d.blocked});
+    if(error) admErr(error); else { tip(d.blocked?'기기 차단을 해제했습니다':'기기를 차단했습니다'); admTab('devices'); }
+  });
+}
+const ACT_KO={approve:'승인',activate:'차단 해제',suspend:'접속 차단',expires:'사용기한 변경',role:'역할 변경',memo:'메모',force_logout:'강제 로그아웃',delete:'계정 삭제',temp_password:'임시 비밀번호 발급',device_block:'기기 차단',device_unblock:'기기 차단 해제',settings:'앱 설정 변경'};
+async function admAlogs(){
+  const {data,error}=await SB.rpc('admin_list_admin_logs',{p_limit:300}); if(error) throw error;
+  const rows=data||[];
+  g('admBody').innerHTML=`<div class="adm-note">📝 누가 언제 누구를 승인·차단했는지 등 관리 작업이 모두 남습니다(지울 수 없음).</div>
+    <div class="adm-tblwrap"><table class="adm-tbl"><thead><tr><th>일시</th><th>처리한 사람</th><th>대상</th><th>작업</th><th>내용</th></tr></thead><tbody>
+    ${rows.length?rows.map(r=>`<tr><td style="white-space:nowrap">${fmtDT(r.created_at)}</td><td>${E(r.admin_email)}</td><td>${E(r.target_email)}</td><td><b>${E(ACT_KO[r.action]||r.action)}</b></td><td>${E(r.detail)}</td></tr>`).join(''):'<tr><td colspan="5" class="adm-empty">기록이 없습니다</td></tr>'}
+    </tbody></table></div>`;
+}
+async function admSettings(){
+  const {data,error}=await SB.rpc('admin_get_settings'); if(error) throw error;
+  const s=ADM.settings=data||{}; const own=PROFILE.role==='owner';
+  g('admBody').innerHTML=`
+    <div class="adm-card"><h3>앱 전체 설정</h3><p>${own?'제작자만 바꿀 수 있습니다. 저장하면 모든 사용자에게 바로 적용됩니다.':'제작자만 바꿀 수 있어 보기만 가능합니다.'}</p>
+      <div class="adm-sw"><div><b>가입 신청 받기</b><small>끄면 로그인 화면에서 "가입 신청"이 사라집니다</small></div><input type="checkbox" id="stSignup" ${s.signup_open?'checked':''} ${own?'':'disabled'}></div>
+      <div class="adm-sw"><div><b>가입 후 제작자 승인 필요</b><small>켜 두면 승인 전에는 사용할 수 없습니다 (권장)</small></div><input type="checkbox" id="stAppr" ${s.require_approval?'checked':''} ${own?'':'disabled'}></div>
+      <div class="adm-sw"><div><b>승인 시 기본 사용기간 (일)</b><small>0 = 무기한 · 예: 365 → 승인일부터 1년</small></div><input type="number" id="stDays" min="0" max="3650" style="width:90px" value="${+s.default_days||0}" ${own?'':'disabled'}></div>
+      <div class="adm-sw"><div><b style="color:var(--danger)">앱 전체 잠금 (점검 모드)</b><small>켜면 제작자·관리자 외 모든 사용자가 사용 불가</small></div><input type="checkbox" id="stLock" ${s.global_lock?'checked':''} ${own?'':'disabled'}></div>
+      <div class="adm-sw" style="display:block"><div><b>잠금 안내 문구</b></div><input type="text" id="stMsg" style="width:100%;box-sizing:border-box;margin-top:6px" value="${E(s.lock_message||'')}" ${own?'':'disabled'}></div>
+      ${own?'<button class="ag-btn" id="stSave" style="max-width:240px">설정 저장</button>':''}</div>
+    <div class="adm-card"><h3>서버 연결 정보</h3>
+      <p>제작자 이메일(owner): <b>${E(s.owner_email||'')}</b><br>서버 주소: <b>${E(CFG&&CFG.supabaseUrl||'')}</b><br>설정 읽은 곳: ${E(CFG&&CFG.src||'')} · 이 기기: ${E(deviceName())}</p>
+      <p>로그인 기능 전체를 끄려면 저장소의 <b>auth-config.json</b>에서 <code>"enabled": false</code> 로 바꾸면 됩니다.</p></div>`;
+  if(g('stSave')) g('stSave').onclick=async()=>{
+    const {error}=await SB.rpc('admin_save_settings',{p_signup_open:g('stSignup').checked,p_require_approval:g('stAppr').checked,p_global_lock:g('stLock').checked,p_lock_message:g('stMsg').value,p_default_days:+g('stDays').value||0});
+    if(error) admErr(error); else { tip('앱 설정을 저장했습니다'); admTab('settings'); }
+  };
+}
+
+/* ---------- 시작 ---------- */
+async function boot(retry){
+  if(!retry && cfgOn(jget(LS.cfg))) viewLoading('접속 확인 중…');   /* 지난번에 로그인이 켜져 있었으면 설정을 읽는 동안에도 화면을 가림 */
+  CFG = await loadConfig();
+  if(!cfgOn(CFG)){ unlock(); renderAcct(); return; }          /* 로그인 기능 꺼짐 → 기존처럼 바로 사용 */
+  viewLoading(retry?'다시 확인 중…':'접속 확인 중…');
+  if(!window.supabase||!window.supabase.createClient){ viewBlocked('offline'); return; }
+  if(!SB){
+    SB = window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseAnonKey, {auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storageKey:'stqs_auth_session'}});
+    SB.auth.onAuthStateChange((ev)=>{ if(ev==='PASSWORD_RECOVERY'){ recoveryMode=true; viewChangePw(false); } });
+    window.STQS_AUTH = {get profile(){return PROFILE}, openAdmin, logout, client:SB};
+  }
+  hookStore();
+  try{ const r=await SB.rpc('public_settings'); if(r.data) PUB=r.data; }catch(e){}
+  let session=null;
+  try{ const r=await SB.auth.getSession(); session=r.data&&r.data.session; }catch(e){}
+  if(recoveryMode) return;
+  if(!session){
+    const prof=jget(LS.prof), okAt=+lsGet(LS.okAt)||0;
+    if(!navigator.onLine && prof && Date.now()-okAt<OFFLINE_GRACE_H*3600e3){ PROFILE=prof; renderAcct('오프라인'); unlock(); return; }
+    renderAcct(); viewLogin(); return;
+  }
+  if(!lsGet(LS.loginAt)) lsSet(LS.loginAt,new Date().toISOString());
+  await checkin('boot');
+}
+function resumeCheck(){ if(SB && PROFILE && cfgOn(CFG)) checkin('resume'); }
+setInterval(resumeCheck, 5*60*1000);
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') resumeCheck(); });
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>boot()); else boot();
+})();
+</script>
