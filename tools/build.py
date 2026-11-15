@@ -20,6 +20,9 @@ t = t.replace("/*__IMG__*/{}", json.dumps(img)).replace("/*__SITES__*/{}", rd("a
 # 제작자 관리(로그인·권한·동기화) 모듈 — src/auth.html + supabase-js
 auth = rd("src/auth.html").replace("/*__SUPABASE__*/", rd("vendor/supabase-js-2.119.0.min.js").replace("</script", "<\\/script"))
 t = t + "\n" + auth
+# 에스텍 통합 로그인 · 프로그램별 사용 권한(app-access) — src/app-access.html
+import os
+if os.path.exists("src/app-access.html"): t = t + "\n" + rd("src/app-access.html")
 os.makedirs(p("dist"), exist_ok=True)
 open(p("dist/artifact.html"), "w", encoding="utf-8").write(t)
 html = '<!doctype html>\n<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#1b2a86"><link rel="manifest" href="manifest.webmanifest"><link rel="icon" type="image/png" href="favicon.png"><link rel="apple-touch-icon" href="apple-touch-icon.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="에스텍 견적"></head><body>\n' + t + '\n</body></html>'

@@ -895,7 +895,7 @@ aside.rail{gap:14px}
 <script>try{var _t=localStorage.getItem("stec_theme");if(_t==="light"||_t==="dark")document.documentElement.setAttribute("data-theme",_t)}catch(e){}</script>
 <header class="topbar">
   <button type="button" class="logo-fig" id="logoHome" title="메인화면으로" aria-label="메인화면으로"><img src="__APPICON__" alt="S-Tec 견적 시스템 앱 아이콘"></button>
-  <div class="brand" title="에스텍 그룹 용역인력 견적시스템"><b>S-Tec-Quotation-System</b><span class="ver">Ver 7.6</span></div>
+  <div class="brand" title="에스텍 그룹 용역인력 견적시스템"><b>S-Tec-Quotation-System</b><span class="ver">Ver 7.7</span></div>
   <div class="sp"><div class="gstrip" id="gstrip" aria-hidden="true"></div></div>
   <div class="tb-home home-only" id="tbHome"></div>
   <div class="tb-actions">
@@ -1639,9 +1639,11 @@ function calcRole(r, S0, ctx){
   L.ordinary = ordinary;
   L.otH = otHours(r,S); L.nightH = nightHours(r,S); L.holH = holHours(r);
   L.ot = L.otH ? U(L.otH*ordinary) : 0;          // 연장근로 환산시간 × 통상시급
+  const FXA=r.fx||{};
   L.nightRateBase = nightRateOf(r, L, base, ordinary);
   L.night = L.nightH ? U(L.nightH*L.nightRateBase) : 0;  // 야간가산 환산시간 × 통상시급
   L.hol = L.holH ? U(L.holH*ordinary) : 0;        // 공휴일 환산시간 × 통상시급
+  if(FXA.ot!=null) L.ot=+FXA.ot; if(FXA.night!=null) L.night=+FXA.night; if(FXA.hol!=null) L.hol=+FXA.hol;   // 당해년 원본 금액 그대로
   L.sub1 = L.basic+L.ot+L.night+L.pos+L.hol+L.duty+L.meal+L.adj+L.xpay;
   L.leave = (+r.leave||0) ? U(ordinary*(S.leaveH||8)*(+r.leave)/12) : 0;
   L.laborDay = r.laborDay ? U(Math.max(0,(+r.dayH||0)-(+r.rest||0))/12*ordinary) : 0;
@@ -1680,6 +1682,8 @@ function calcRole(r, S0, ctx){
   L.profit = (S.profitBase==="sub" ? L.csub : L.dcost)*pct(S.profit);
   L.total = L.csub + L.profit;
   L.price = priceRoundOf(S, L.total);
+  // 당해년(원본 확정 단가): 견적금액은 원본 그대로, 기업이윤 = 견적금액 − 원가소계 (이윤율은 탄력적으로)
+  if(+r.fixPrice>0){ L.price=+r.fixPrice; L.profit=L.price-L.csub; L.total=L.price; L.profitFlex=true; }
   L.count = +r.count||0; L.months = +r.months||12;
   L.monthTotal = L.price*L.count;
   L.yearTotal = L.monthTotal*L.months;
@@ -2808,7 +2812,7 @@ function renderDocs(R){
       ${line("1. 직접원가","dcost","노무비 (1) + 경비 (2)","s",won2,"<td class='g'></td>")}
       ${line("2. 일반관리비","ga",`직접원가 × ${S.ga}%`,"",won2,"<td class='g'></td>")}
       ${line("3. 원가소계","csub","1 + 2","",won2,"<td class='g'></td>")}
-      ${line("4. 기업이윤","profit",`${S.profitBase==="sub"?"원가소계":"직접원가"} × ${S.profit}%`,"",won2,"<td class='g'></td>")}
+      ${line("4. 기업이윤","profit",cols.some(({r})=>+r.fixPrice>0)?"견적금액(원본 확정) − 원가소계 · 이윤율 탄력 적용":`${S.profitBase==="sub"?"원가소계":"직접원가"} × ${S.profit}%`,"",won2,"<td class='g'></td>")}
       ${line("5. 원가총계","total","3 + 4","s",won2,"<td class='g'></td>")}
       ${line("6. 견적금액(인당)","price",{down3:"천원 미만 절삭",up3:"천원 미만 절상",down2:"백원 미만 절삭",none:"원 단위"}[S.priceRound],"k",won,"<td class='g'></td>")}
     </tbody></table></div>
@@ -3058,7 +3062,7 @@ function rollover(){
     r.prevL=snapL(L0); r.prevInfo={wage:+o.wage, base:+o.base, ot:+o.ot, night:+o.night, count:L0.count, shift:shiftLabel(o)};
     { const pr=JSON.parse(JSON.stringify(o)); ["prevL","prevInfo","prevRole"].forEach(k=>delete pr[k]); r.prevRole=pr; }
     if(fpOf(i)){ r.prevL.price=fpOf(i); r.prevL.monthTotal=fpOf(i)*L0.count; r.prevInfo.filePrice=fpOf(i); }
-    r.prev=priceOf(i); delete r.filePrice;
+    r.prev=priceOf(i); delete r.filePrice; delete r.fixPrice; delete r.fx; delete r.fileSub1;
     r.wage = (+r.wage<=old.minWage+0.01) ? n.set.minWage : Math.round(r.wage*ratio*100)/100;
     // 익년도: 보안 외 업종은 일반근로 — 연장 가산 1.5배, 주40시간 초과 기본시간은 연장근로로
     if(r.cat!=="sec") r.watch=false;
@@ -3245,7 +3249,7 @@ function fxDetailed(g, sheet, meta, ctxText){
   const rows={};
   const find=(key,re,{ex=null,max=null,min=null,from=hdrStart,primaryOnly=false}={})=>{ for(let r=from;r<=g.R;r++){ const p=P(r), f=F(r); if(!(re.test(p) || (!primaryOnly && !p && re.test(f)))) continue; if(ex && (ex.test(p)||ex.test(f))) continue;
       const vals=roleCols.map(c=>g.G[r][c]).filter(FX.isNum); if(!vals.length) { if(max==null) { rows[key]=rows[key]??r; } continue; }
-      if(max!=null && vals.some(v=>v>max)) continue; if(min!=null && vals.every(v=>v<min && v!==0)) continue; rows[key]=r; return r; } return rows[key]??-1; };
+      if(max!=null && vals.some(v=>v>max)) continue; if(min!=null){ const nz=vals.filter(v=>v!==0); if(!nz.length || nz.every(v=>v<min)) continue; } rows[key]=r; return r; } return rows[key]??-1; };
   find("wage",/시급|시간급|시간당/,{ex:/통상|평균/,max:100000,min:3000});
   find("ordinary",/통상시급|통상시간급|통상임금/,{max:200000});
   rows.basic=basicRow;
@@ -3353,13 +3357,16 @@ function fxDetailed(g, sheet, meta, ctxText){
         if(hv>0 && dv>0 && rates.health){ const C={meal, pos, posMeal:pos+meal, none:0}, hit=["meal","pos","posMeal","none"].find(k=>{ const x=(dv-rv-C[k])*rates.health/100; return RU(x)===Math.round(hv)||Math.abs(x-hv)<0.6; }); if(hit && hit!=="meal") opt.insEx=hit; } }
       if(has("retire")) opt.retire = (V("retire")||0)>0;
       if(has("pension")) opt.pensionPct = (V("pension")||0)>0 ? 100 : 0;
-      if(has("uniform")) opt.uniform = V("uniform")||0;
-      if(has("special")) opt.special = (V("special")||0)>0 ? "on" : "off";
+      opt.uniform = has("uniform") ? V("uniform")||0 : 0;   // 원본에 없는 항목은 0
+      opt.special = has("special") && (V("special")||0)>0 ? "on" : "off";
       const months=sheetMonths||meta.months; if(months) opt.months=months;
       const nm=name.includes(opt.rank)?name.replace(opt.rank,"").replace(/^[\s(·]+|[\s)]+$/g,""):name;
       const detailParts=[group, nm, shiftT.join(" ")].map(s=>(s||"").trim()).filter(Boolean);
       opt.detail=[...new Set(detailParts)].join(" · ").slice(0,40);
       const fp=V("price"); if(fp) opt.filePrice=Math.round(fp);
+      // 당해년 = 원본 금액 그대로: 연장·심야·휴일 수당은 원본 금액을 고정(익년도는 시간으로 다시 계산), 급료 소계도 원본과 같게
+      { const fx={}; if(has("otM") && otM!=null) fx.ot=otM; if(has("nightM") && nM!=null) fx.night=nM; if(has("holM") && holM!=null) fx.hol=holM;
+        if(Object.keys(fx).length) opt.fx=fx; const s1=V("sub1"); if(s1>0) opt.fileSub1=s1; }
       if(xItems.length){ opt.extras=xItems.map(x=>({id:nid(), sec:x.sec, name:x.name, amt:FX.isNum(g.G[x.row][c])?Math.round(g.G[x.row][c]*1e4)/1e4:0, ord:x.ord, ins:x.ins, _x:x}));
         const PX=opt.extras.filter(x=>x.sec==="pay"&&x.amt), n=Math.min(PX.length,8);
         const ordF=V("ordinary"); if(ordF>0 && n){ const diff=ordF*base-(RU(base*wage)+pos+adj+duty);
@@ -3398,7 +3405,10 @@ function fxDetailed(g, sheet, meta, ctxText){
       // 인력마다 금액이 다르고 통상시급에 비례하면 ‘통상시급 × 시간 × 의무고용률’ 방식
       if(D.length>1 && D.every(v=>v>0) && O.every(v=>v>0) && D.some(v=>Math.abs(v-dv)>1)){ const k=D.map((v,i)=>v/(O[i]*0.031)); if(k.every(x=>Math.abs(x-k[0])<0.01)){ set.disMode="ord"; set.disOrdH=Math.round(k[0]*100)/100; set.disRate=3.1; set.disRatio=100; } }
       else if(dv>0 && O[0]>0){ const k=dv/(O[0]*0.031); if(Math.abs(k*100-Math.round(k*100))<0.01 && [209,125.4,104.5,167.2].some(x=>Math.abs(x-k)<0.01)){ set.disMode="ord"; set.disOrdH=Math.round(k*100)/100; set.disRate=3.1; set.disRatio=100; } } }
-    if(rows.meeting>=0 && v0("meeting")!=null) set.meeting=Math.round(v0("meeting"));
+    if(rows.meeting>=0 && v0("meeting")!=null) set.meeting=Math.round(v0("meeting")); else set.meeting=0;
+    // 원본 견적서에 없는 경비 항목은 넣지 않음 (당해년 = 원본 그대로)
+    if(!(rows.gift>=0)) set.gift=0; if(!(rows.condol>=0)) set.condol=0; if(!(rows.relief>=0)) set.reliefDays=0; if(!(rows.resTax>=0)) set.resTax=0;
+    if(!(rows.edu>=0)){ set.edu=0; set.eduFix=0; } if(!(rows.risk>=0)){ set.risk=0; set.riskFix=0; } if(!(rows.dis>=0)) set.disOn=false;
     if(rows.condol>=0 && v0("condol")!=null) set.condol=set.itemRnd==="none"?v0("condol"):Math.round(v0("condol"));
     if(rows.relief>=0 && v0("relief")!=null) set.reliefDays=Math.round(v0("relief")*12/(ord0*12)*100)/100;
     else if(rows.relief>=0) set.reliefDays=0;   // 항목은 있으나 금액이 비어 있음
@@ -3569,6 +3579,11 @@ function fxBuildState(A, idx, opts={}){
 function fxCalibrate(st){
   st.roles.forEach((r,i)=>{
     const fp=+r.filePrice; if(!fp) return;
+    if(+r.fileSub1>0){   // 원본 상세 견적서: 원본 항목은 이름·금액 그대로, 맞지 않는 차액은 조정수당에 합산해 급료 소계를 원본과 같게, 단가는 원본 그대로(이윤으로 맞춤)
+      const a0=+r.adj||0;
+      for(let k=0;k<4;k++){ const d=r.fileSub1-calcAll(st).rows[i].L.sub1; if(Math.abs(d)<0.005) break; r.adj=Math.round(((+r.adj||0)+d)*1e4)/1e4; }
+      if(Math.abs((+r.adj||0)-a0)>0.005) r.adjCal=(+r.adj||0)-a0;
+      r.fixPrice=fp; return; }
     const a0=+r.adj||0, price=a=>{ r.adj=a; return calcAll(st).rows[i].L.price; };
     if(price(a0)===fp){ r.adj=a0; return; }
     let lo=a0-3000000, hi=a0+3000000;
@@ -4816,6 +4831,9 @@ async function buildBdSheet(wb, sheetName, R, Y, m, S, logoId, logoSm, tab, opt=
         total:`${c("csub")}+${c("profit")}`,
         price:`CHOOSE(${Q("pRound")}+1,ROUNDDOWN(${c("total")},-3),ROUNDUP(${c("total")},-3),ROUNDDOWN(${c("total")},-2),ROUND(${c("total")},0),ROUND(${c("total")},-3))`
       };
+      // 당해년 원본 확정값: 연장·심야·휴일 수당 금액과 견적금액은 원본 그대로(노란 칸), 기업이윤 = 견적금액 − 원가소계
+      { const fxa=r.fx||{}; [["ot$","ot"],["night$","night"],["hol","hol"]].forEach(([kk,fk])=>{ if(fxa[fk]!=null){ delete F[kk]; inputs[kk]=+fxa[fk]; } });
+        if(+r.fixPrice>0){ delete F.price; inputs.price=+r.fixPrice; F.profit=`${c("price")}-${c("csub")}`; } }
       const resKey={ "ot$":"ot","night$":"night" }[k]||k;
       const cell=rw.getCell(3+i);
       if(typ==="x"){ cell.value=inputs[k]; cell.fill=xFill("FFFFF6D5"); cell.numFmt=FMT; return; }
