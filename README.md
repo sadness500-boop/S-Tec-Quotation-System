@@ -74,13 +74,13 @@ python3 tools/build.py
 ## 휴대폰 앱으로 쓰기
 
 1. 저장소 **Settings → Pages**에서 Source를 `Deploy from a branch`, Branch를 `main` / `/(root)`로 저장합니다(최초 1회).
-2. 몇 분 뒤 `https://sadness500-boop.github.io/Quotation-System/` 주소가 열립니다. 메인 화면 오른쪽 **앱 다운로드 QR**이 이 주소를 가리킵니다.
+2. 몇 분 뒤 `https://sadness500-boop.github.io/S-Tec-Quotation-System/` 주소가 열립니다. 메인 화면 오른쪽 **앱 다운로드 QR**이 이 주소를 가리킵니다.
 3. 휴대폰 카메라로 QR을 찍어 연 뒤 브라우저 메뉴의 **홈 화면에 추가**(아이폰 Safari: 공유 → 홈 화면에 추가)를 누르면 앱처럼 설치됩니다.
 
 ## 휴대폰 앱
 
-- **설치 안내 페이지:** https://sadness500-boop.github.io/Quotation-System/install.html (메인화면 ‘앱 다운로드 QR’이 이 페이지를 엽니다)
-- **안드로이드 앱(APK):** https://github.com/sadness500-boop/Quotation-System/releases/download/android-latest/S-Tec-Quotation-System.apk
+- **설치 안내 페이지:** https://sadness500-boop.github.io/S-Tec-Quotation-System/install.html (메인화면 ‘앱 다운로드 QR’이 이 페이지를 엽니다)
+- **안드로이드 앱(APK):** https://github.com/sadness500-boop/S-Tec-Quotation-System/releases/download/android-latest/S-Tec-Quotation-System.apk
   - `index.html`이나 `mobile/` 폴더가 바뀌면 GitHub Actions(‘Android 앱 만들기’)가 자동으로 새 APK를 만들어 위 주소에 올립니다.
   - 앱 안에서 엑셀 내보내기·JSON 백업은 휴대폰 ‘공유’ 창으로 저장하고, 인쇄는 안드로이드 인쇄(프린터·PDF로 저장)로 연결됩니다.
   - 서명 키는 저장소에 넣지 않습니다. GitHub 비밀값 `STEC_KEYSTORE_B64`·`STEC_KEYSTORE_PASSWORD`·`STEC_KEY_ALIAS`·`STEC_KEY_PASSWORD`가 있으면 그 키를, 없으면 빌드 캐시에 보관한 키를 씁니다.
@@ -106,7 +106,7 @@ python3 tools/build.py
 - v5.2: 신규·갱신 견적 화면 오른쪽의 ‘앱 다운로드 QR’ 카드 삭제(홈 화면 QR은 유지).
 - v5.3: 홈 화면 상단 ‘앱 다운로드 QR · 누르면 크게 보기’가 다시 크게 열리도록 수정(Esc·바깥 클릭으로 닫기).
 - v5.4: 프로그램 이름을 ‘S-Tec-Quotation-System’으로 통일 — 화면 제목·브라우저 탭·홈 화면 앱 이름·안드로이드 앱 이름, PC 파일명 S-Tec-Quotation-System_v5.4.html, 앱 파일 S-Tec-Quotation-System.apk(예전 링크 S-Tec-Quotation.apk도 계속 동작).
-- v5.5: 상단 ‘앱 다운로드 QR’ → ‘다운로드 QR’. QR이 앱 설치 페이지 대신 사이트 주소(https://sadness500-boop.github.io/Quotation-System/)로 연결 — 북마크 안내·주소 복사·사이트 열기 버튼.
+- v5.5: 상단 ‘앱 다운로드 QR’ → ‘다운로드 QR’. QR이 앱 설치 페이지 대신 사이트 주소(https://sadness500-boop.github.io/S-Tec-Quotation-System/)로 연결 — 북마크 안내·주소 복사·사이트 열기 버튼.
 - v5.6: 상단 ‘다운로드 QR’ 오른쪽에 ‘친구 추천’ 추가 — 북마크용 사이트 주소 QR·주소, 주소 공유하기(카카오톡·문자)·주소 복사·사이트 열기.
 - v5.7: 사업장 지도에 카카오맵 연동(웹 주소에서 [카카오맵] 버튼, 스카이뷰·확대 컨트롤, 사업장·본부·지사 표시, 지도에서 위치 지정) + [내 위치] — 휴대폰 GPS, PC IP 주소 기반(더 정확하게: 브라우저 Wi-Fi 위치), 실패 시 저장해 둔 위치·지도에서 직접 지정, 가장 가까운 본부까지 거리, 내 위치를 사업장 위치로 사용. 안드로이드 앱 위치 권한 추가.
 - v5.8: 갱신 견적 엑셀 — 당해년 산출내역서가 원본 견적서의 항목명·금액(기본급여·시간외·공휴일·직무·식대·조정·직책수당, 건강보험·국민연금·특수검진·대치근무비·주민세 등)과 같게 재현(조정수당 보정 없음, 연차일수·상여 월정액·4대보험 제외항목·교육/위험 절사·장애인 부담기초액·이윤율·천원 절상 판별). 산출 기준을 인력별(열별)로 반영. 견적서에 인상액 열, 당해년 견적서 시트 삭제. 부대비용 시트에 차량·장비·기타 항목별 상세 산출(수식)과 산출내역서 연결. 연장·야간·공휴일 등 기본시간 외 금액 = 환산시간 × 통상시급. 원본의 사업장운영비가 부대비용으로 중복 반영되던 문제 수정.
@@ -130,6 +130,7 @@ python3 tools/build.py
 - v7.6: 갱신 견적 엑셀의 당해년 산출내역서(5번 시트)를 다시 **익년 산출내역서(3번 시트)와 같은 양식·서식**으로 만듦 — 같은 행·같은 항목·같은 수식이라 줄별로 바로 비교 가능 (v7.4의 ‘원본 견적서 그대로 옮기기’는 되돌림 · 원본은 7번 시트에서 확인).
 - v7.7: 갱신 견적 당해년(2026) 재현 방식 변경 — ① 급료: 원본과 이름이 같은 항목(기본급·연장·심야할증수당 등)은 원본 금액 그대로, 맞지 않는 차액은 조정수당에 합산해 **급료 소계를 원본과 똑같이** ② 견적금액은 원본 확정 단가 그대로, **기업이윤 = 견적금액 − 원가소계**(이윤율 탄력) — 예전처럼 조정수당을 깎아 단가를 맞추지 않음 ③ 연장·심야 "시간" 줄을 "금액" 줄로 잘못 읽던 문제 수정 ④ 원본에 없는 경비 항목(회의비·대치근무비·주민세 등)은 넣지 않음. 익년도는 법정 기준으로 다시 계산. (빌드: src/app-access.html 통합 로그인 모듈을 소스에 포함)
 - v7.8: 당해년 재현 규칙을 **불러온 양식과 관계없이** 적용 — 급료 소계 줄 이름이 달라도(또는 없어도) 찾아서/계산해서 원본과 같게, 기본급도 원본 금액 그대로, 견적금액은 항상 원본 확정 단가 · 기업이윤 = 견적금액 − 원가소계 (요약 양식 포함, 조정수당으로 단가를 맞추는 보정은 완전히 없앰). 급료 소계 줄이 없는 양식도 경비 항목 구간을 찾음.
+- v7.9: 저장소 이름 변경(Quotation-System → **S-Tec-Quotation-System**)에 맞춰 웹 주소 · 앱 설치 정보(manifest id · start_url · scope) · 설정 파일 주소 · 다운로드 링크를 새 주소 https://sadness500-boop.github.io/S-Tec-Quotation-System/ 로 변경. 예전 주소로 설치한 PC 앱은 지우고 새 주소에서 다시 설치.
 
 ---
 

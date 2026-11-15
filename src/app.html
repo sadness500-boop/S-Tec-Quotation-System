@@ -895,7 +895,7 @@ aside.rail{gap:14px}
 <script>try{var _t=localStorage.getItem("stec_theme");if(_t==="light"||_t==="dark")document.documentElement.setAttribute("data-theme",_t)}catch(e){}</script>
 <header class="topbar">
   <button type="button" class="logo-fig" id="logoHome" title="메인화면으로" aria-label="메인화면으로"><img src="__APPICON__" alt="S-Tec 견적 시스템 앱 아이콘"></button>
-  <div class="brand" title="에스텍 그룹 용역인력 견적시스템"><b>S-Tec-Quotation-System</b><span class="ver">Ver 7.8</span></div>
+  <div class="brand" title="에스텍 그룹 용역인력 견적시스템"><b>S-Tec-Quotation-System</b><span class="ver">Ver 7.9</span></div>
   <div class="sp"><div class="gstrip" id="gstrip" aria-hidden="true"></div></div>
   <div class="tb-home home-only" id="tbHome"></div>
   <div class="tb-actions">
@@ -1811,7 +1811,7 @@ let kmap=null, kmSelOv=null, kmMe=[];
 const kkPref=()=>{ try{ return localStorage.getItem("stec_map_base")!=="leaflet"; }catch(e){ return true; } };
 const isKk=()=>$("#mapBox")&&$("#mapBox").classList.contains("kk");
 function updMapTools(){ const b=$("#btnKakaoMap"); if(!b) return; const on=isKk(); b.setAttribute("aria-pressed",String(on)); b.classList.toggle("off",kkMode!=="js");
-  b.title = kkMode==="js" ? (on?"기본 지도로 보기":"카카오맵으로 보기") : "카카오맵은 웹 주소(https://sadness500-boop.github.io/Quotation-System/)에서 볼 수 있습니다"; }
+  b.title = kkMode==="js" ? (on?"기본 지도로 보기":"카카오맵으로 보기") : "카카오맵은 웹 주소(https://sadness500-boop.github.io/S-Tec-Quotation-System/)에서 볼 수 있습니다"; }
 function kmOverlay(lat,lng,html,z,onClick,yAnchor){ const el=document.createElement("div"); el.innerHTML=html; const c=el.firstElementChild; if(onClick){ c.classList.add("kmk"); c.addEventListener("click",ev=>{ ev.stopPropagation(); onClick(); }); }
   return new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(lat,lng),content:c,zIndex:z||1,yAnchor:yAnchor??.5,xAnchor:.5}); }
 function kmBuild(){
@@ -1828,7 +1828,7 @@ function kmBuild(){
 }
 function kmShow(on){
   const box=$("#mapBox"); if(!box) return;
-  if(on && kkMode!=="js"){ toast(location.protocol==="file:"?"카카오맵은 PC 파일이 아닌 웹 주소(sadness500-boop.github.io/Quotation-System)에서 볼 수 있습니다":"카카오맵에 연결되지 않았습니다 · ‘카카오맵 연결’ 설정을 확인하세요"); return; }
+  if(on && kkMode!=="js"){ toast(location.protocol==="file:"?"카카오맵은 PC 파일이 아닌 웹 주소(sadness500-boop.github.io/S-Tec-Quotation-System)에서 볼 수 있습니다":"카카오맵에 연결되지 않았습니다 · ‘카카오맵 연결’ 설정을 확인하세요"); return; }
   if(on){ try{ kmBuild(); }catch(e){ console.warn(e); toast("카카오맵을 불러오지 못했습니다"); return; } }
   if(on && map){ const c=map.getCenter(); box.classList.add("kk"); kmap.relayout(); kmap.setCenter(new kakao.maps.LatLng(c.lat,c.lng)); kmap.setLevel(Math.max(1,Math.min(14,Math.round(19-map.getZoom())))); kmSel(); kmMeDraw(); }
   else if(!on && kmap && map && isKk()){ const c=kmap.getCenter(); box.classList.remove("kk"); map.invalidateSize(); map.setView([c.getLat(),c.getLng()],Math.max(6,Math.min(18,19-kmap.getLevel()))); }
@@ -2850,8 +2850,8 @@ function renderPerson(){ renderTbHome();
   $("#pcEdit").onclick=openProfile;
 }
 /* ── 다운로드 QR : 사이트 주소(북마크용) ── */
-const APP_URL_DEFAULT="https://sadness500-boop.github.io/Quotation-System/";
-const APP_FILE_URL="https://github.com/sadness500-boop/Quotation-System/raw/main/index.html";
+const APP_URL_DEFAULT="https://sadness500-boop.github.io/S-Tec-Quotation-System/";
+const APP_FILE_URL="https://github.com/sadness500-boop/S-Tec-Quotation-System/raw/main/index.html";
 function appUrl(){ try{ const v=localStorage.getItem("stec_app_url"); return v&&!/install\.html/.test(v)?v:APP_URL_DEFAULT; }catch(e){ return APP_URL_DEFAULT; } }
 function qrSvg(text, cell){
   if(typeof qrcode!=="function") return "";
@@ -3975,7 +3975,7 @@ const VID_LIST=[
   {f:"v3",k:"SECURITY · 주차관리"},{f:"v4",k:"INFRA · 방역 · 세니텍(SANITEC)"},{f:"v5",k:"INFRA · 시설관리"},
   {f:"v6",k:"SECURITY · 물류 현장 안전관리"},{f:"v7",k:"SECURITY · 특수경비 · 설비 감시"},{f:"v8",k:"SECURITY · 행사 안전관리"},{f:"v9",k:"SECURITY · 시설경비"}];
 const VID_FX=["mosaic","fade","zoom","iris"];
-const VID_WEB="https://sadness500-boop.github.io/Quotation-System/videos/";
+const VID_WEB="https://sadness500-boop.github.io/S-Tec-Quotation-System/videos/";
 const VS={i:0,fxN:0,busy:false,bad:new Set(),vol:0.7,muted:true};
 function vidSrc(n){ const it=VID_LIST[n]; if(!it.f) return $("#introVid").dataset.intro||$("#introVid").getAttribute("src"); return (location.protocol==="file:"?VID_WEB:"videos/")+it.f+".mp4"; }
 function vidCur(){ return $(".stage .sv.on")||$("#introVid"); }
