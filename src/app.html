@@ -4729,6 +4729,7 @@ const PRICE_RND=["down3","up3","down2","none","round3"];
 function svcKind(svc){ const m=String(svc||"").match(/^(.*?용역)/); return m && m[1].length<=20 ? m[1]+" " : ""; }
 async function buildBdSheet(wb, sheetName, R, Y, m, S, logoId, logoSm, tab, opt={}){
   const nc=R.rows.length, lastC=2+nc+3+1; // +산출근거 열
+  const FIXP=R.rows.some(({r})=>+r.fixPrice>0);   // 당해년 원본 확정 단가(이윤 탄력)
   const ws=wb.addWorksheet(sheetName,{properties:{tabColor:{argb:tab}},views:[{showGridLines:false,state:"frozen",xSplit:2,ySplit:9}],pageSetup:{paperSize:9,orientation:"landscape",fitToPage:true,fitToWidth:1,fitToHeight:0,margins:{left:.3,right:.3,top:.4,bottom:.4,header:.2,footer:.2}}});
   ws.columns=[{width:11},{width:30},...R.rows.map(()=>({width:13})),{width:15},{width:13},{width:16},{width:44}];
   if(!wb._cubeId){ try{ const cb=await imgPng("figcube",220); wb._cubeId=wb.addImage({base64:cb.base64,extension:"png"}); wb._cubeSz={w:Math.round(70*cb.w/cb.h),h:70}; }catch(e){ wb._cubeId=logoId; wb._cubeSz=logoSm; } }
@@ -4855,7 +4856,8 @@ async function buildBdSheet(wb, sheetName, R, Y, m, S, logoId, logoSm, tab, opt=
       [cT,cA,cY].forEach(c=>rw.getCell(c).numFmt=FMT);
     } else if(k==="count"){ rw.getCell(cT).value={formula:`SUM(${rng})`,result:R.heads}; rw.getCell(cT).numFmt="0"; }
     rw.getCell(cD).value= typ==="x" ? `${XSEC[g5.sec]}${g5.sec==="pay"?` · ${g5.ord?"통상임금 산입":"통상임금 제외"} · ${g5.ins?"4대보험 산정":"4대보험 제외"}`:""} · 월정액(인당, 입력값)`
-      : (BD_DESC[k]||(typ==="i"?"입력값":(LBL[k]&&LBL[k]!==lbl0?`원본 항목명 · ${lbl0}`:"")));
+      : (FIXP && k==="profit" ? "견적금액(원본 확정 단가) − 원가소계 · 이윤율은 탄력 적용" : FIXP && k==="price" ? "원본 견적서의 확정 단가 (입력값)" : FIXP && k==="sub1" ? "기본급여 ~ 수당 합계 = 원본 급료 소계 (차액은 조정수당에 합산)" :
+        (BD_DESC[k]||(typ==="i"?"입력값":(LBL[k]&&LBL[k]!==lbl0?`원본 항목명 · ${lbl0}`:""))));
     // 서식
     if(typ==="i"||typ==="hc"){
       for(let c=1;c<=lastC;c++){ const cc=rw.getCell(c); cc.border=xBorder(); if(c<=2||c>=cT) cc.fill=xFill("FFFAFBFD"); if(typ==="hc"&&c>2&&c<cT) cc.fill=xFill("FFF2F5FB");

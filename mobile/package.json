@@ -1,6 +1,6 @@
 {
   "name": "stec-quotation-app",
-  "version": "7.8.0",
+  "version": "7.8.1",
   "private": true,
   "description": "S-Tec-Quotation-System 휴대폰 앱 (Capacitor)",
   "scripts": {
