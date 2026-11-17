@@ -138,7 +138,14 @@ const CFG_SOURCES = [
 const APP_NAME = 'S-Tec-Quotation-System';
 const APP_SUB  = '에스텍 그룹 용역인력 견적시스템';
 const WEB_URL  = 'https://sadness500-boop.github.io/S-Tec-Quotation-System/';
-const LS = { cfg:'stqs_auth_cfg', dev:'stqs_device_id', devName:'stqs_device_name', loginAt:'stqs_login_at',
+/* ---------- 에스텍 통합 로그인(SSO) ----------
+   S-Tec Operations and Sales Integrated Management System(메인 프로그램)과 7개 프로그램이
+   같은 로그인 정보(stec_auth_session)·기기 번호·로그인 시각을 함께 써서, 한 번 로그인하면 모든 프로그램이 열립니다.
+   예전에 이 프로그램에만 저장된 로그인은 처음 한 번 자동으로 옮겨 씁니다.  Designed & Developed by Rat Rae Choi */
+const STEC_SSO = 'stec_auth_session';
+function stecSSO(old){ try{ if(old && old !== STEC_SSO){ const v = localStorage.getItem(old); if(v && !localStorage.getItem(STEC_SSO)) localStorage.setItem(STEC_SSO, v); if(v) localStorage.removeItem(old); } }catch(e){} return STEC_SSO; }
+function stecShared(own, shared){ try{ if(localStorage.getItem(shared) == null){ const o = localStorage.getItem(own); if(o != null) localStorage.setItem(shared, o); } }catch(e){} return shared; }
+const LS = { cfg:'stqs_auth_cfg', dev:stecShared('stqs_device_id','stec_device_id'), devName:stecShared('stqs_device_name','stec_device_name'), loginAt:stecShared('stqs_login_at','stec_login_at'),
              okAt:'stqs_auth_ok_at', okUser:'stqs_auth_ok_user', meta:'stqs_sync_meta', prof:'stqs_auth_profile',
              lastEmail:'stqs_last_email', owner:'stqs_sync_owner', reloaded:'stqs_sync_reloaded' };
 /* 여러 기기에서 똑같이 맞출 항목 — 견적 보관함 · 작성 중 견적 · 견적 담당(내 정보) · 화면 테마 */
@@ -710,7 +717,7 @@ async function boot(retry){
   viewLoading(retry?'다시 확인 중…':'접속 확인 중…');
   if(!window.supabase||!window.supabase.createClient){ viewBlocked('offline'); return; }
   if(!SB){
-    SB = window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseAnonKey, {auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storageKey:'stqs_auth_session'}});
+    SB = window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseAnonKey, {auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storageKey:stecSSO('stqs_auth_session')}});
     SB.auth.onAuthStateChange((ev)=>{ if(ev==='PASSWORD_RECOVERY'){ recoveryMode=true; viewChangePw(false); } });
     window.STQS_AUTH = {get profile(){return PROFILE}, openAdmin, logout, client:SB};
   }
@@ -731,5 +738,23 @@ function resumeCheck(){ if(SB && PROFILE && cfgOn(CFG)) checkin('resume'); }
 setInterval(resumeCheck, 5*60*1000);
 document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') resumeCheck(); });
 if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>boot()); else boot();
+})();
+</script>
+<script>
+/* 에스텍 통합관리 — 「메인으로」 버튼 (S-Tec Operations and Sales Integrated Management System)
+   Designed & Developed by Rat Rae Choi */
+(function(){
+  if(document.getElementById('stecMainBtn')) return;
+  var MAIN = 'https://sadness500-boop.github.io/S-Tec-Operations-and-Sales-Integrated-Management-System/';
+  var st = document.createElement('style');
+  st.textContent = '#stecMainBtn{position:fixed;left:12px;bottom:12px;z-index:8500;display:flex;align-items:center;gap:6px;padding:5px 12px 5px 5px;border-radius:999px;'
+    + 'background:#0B1F8A;color:#fff!important;font:700 12.5px/1 "Malgun Gothic","Apple SD Gothic Neo",sans-serif;text-decoration:none!important;box-shadow:0 4px 14px rgba(0,0,0,.3);opacity:.88;transition:opacity .2s}'
+    + '#stecMainBtn:hover{opacity:1}#stecMainBtn img{width:24px;height:24px;border-radius:6px;display:block}@media print{#stecMainBtn{display:none!important}}';
+  document.head.appendChild(st);
+  var a = document.createElement('a'); a.id = 'stecMainBtn'; a.href = MAIN;
+  a.title = 'S-Tec Operations and Sales Integrated Management System — 메인 화면으로';
+  a.innerHTML = '<img src="' + MAIN + 'icons/favicon-48.png" alt="">메인';
+  var add = function(){ document.body.appendChild(a); };
+  if(document.body) add(); else document.addEventListener('DOMContentLoaded', add);
 })();
 </script>
