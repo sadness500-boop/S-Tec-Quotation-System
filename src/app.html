@@ -892,6 +892,7 @@ aside.rail{gap:14px}
 @media (min-width:1181px) and (max-width:1599px){body[data-step="5"] .shell{grid-template-columns:200px minmax(0,1fr)}body[data-step="5"] aside.rail{display:none}}
 </style>
 
+<script src="https://sadness500-boop.github.io/S-Tec-Operations-and-Sales-Integrated-Management-System/vendor/stec-master.js"></script>
 <script>try{var _t=localStorage.getItem("stec_theme");if(_t==="light"||_t==="dark")document.documentElement.setAttribute("data-theme",_t)}catch(e){}</script>
 <header class="topbar">
   <button type="button" class="logo-fig" id="logoHome" title="메인화면으로" aria-label="메인화면으로"><img src="__APPICON__" alt="S-Tec 견적 시스템 앱 아이콘"></button>
@@ -1204,6 +1205,7 @@ aside.rail{gap:14px}
 const IMG = /*__IMG__*/{};
 const SITEDB = /*__SITES__*/{};
 const GROUPDB = /*__GROUP__*/{};
+try{ if(window.StecMaster) StecMaster.mergeSites(SITEDB.sites || [], function(o){ return o; }); SITEDB.sites = (SITEDB.sites || []).filter(function(s){ return !s._master || (s.lat != null && s.lng != null && (!s.company || StecMaster.norm(s.company) === StecMaster.norm('에스텍베스트'))); }); (function(){ var tmp = []; StecMaster.mergeBranchObjs(tmp); tmp.forEach(function(b){ if (b.lat != null && b.lng != null && (!b.company || StecMaster.norm(b.company) === StecMaster.norm('에스텍베스트')) && !(SITEDB.branches || []).some(function(x){ return x.key === b.key; })) (SITEDB.branches = SITEDB.branches || []).push(b); }); })(); }catch(e){} /*sm-sitedb*/
 const ADM = /*__ADM__*/{};
 
 /* ───────── 기준 데이터 ───────── */
@@ -1414,9 +1416,11 @@ const CO_PRESETS={
   "에스텍에코":{coName:"㈜에스텍에코", coCeo:"", coBizNo:"", coCorpNo:"130111-1190676", coAddr:"경기도 화성시 향남읍 구문천2길 210-5", coType:"", coItem:"폐기물 재생처리업", coLic:""}
 };
 const CO_KEYS=["coName","coCeo","coBizNo","coCorpNo","coAddr","coType","coItem","coLic"];
+try{ if(window.StecMaster) StecMaster.companies().forEach(function(x){ var k = x.name, cur = CO_PRESETS[k] || {}, v = {coName: x.full || cur.coName || ('㈜' + k), coCeo: x.ceo, coBizNo: x.bizNo, coCorpNo: x.corpNo, coAddr: x.addr, coType: x.bizType, coItem: x.bizItem, coLic: x.lic}; Object.keys(v).forEach(function(f){ if (v[f] == null || v[f] === '') v[f] = cur[f] || ''; }); CO_PRESETS[k] = v; }); }catch(e){} /*sm-co*/
 const DEFAULT_CO="에스텍시스템";
 function coKeyOf(S){ if(S.coKey && CO_PRESETS[S.coKey]) return S.coKey; const n=String(S.coName||"").replace(/[㈜()주식회사\s]/g,""); return Object.keys(CO_PRESETS).find(k=>n===k)||""; }
 const GROUP_COS=["에스텍시스템","에스텍에이스","에스텍퍼스트","에스텍베스트","에스텍세이프","에스텍플러스","에스텍프라임","에스텍에코","어울림에프"];
+try{ if(window.StecMaster) StecMaster.companies().forEach(function(x){ if (GROUP_COS.indexOf(x.name) < 0) GROUP_COS.push(x.name); }); }catch(e){} /*sm-gc1*/
 const AVATAR="data:image/svg+xml,"+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 140"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e7eaf8"/><stop offset="1" stop-color="#c9d1f0"/></linearGradient></defs><rect width="120" height="140" fill="url(#g)"/><circle cx="60" cy="52" r="24" fill="#1b2a86" opacity=".85"/><path d="M18 140c4-30 22-46 42-46s38 16 42 46z" fill="#1b2a86" opacity=".85"/><text x="60" y="58" font-family="sans-serif" font-size="13" font-weight="700" fill="#fff" text-anchor="middle">S-Tec</text></svg>');
 function getProfile(){ try{ const p=JSON.parse(localStorage.getItem("stec_profile")||"null"); return p&&typeof p==="object"?p:null; }catch(e){ return null; } }
 function profileSettings(){
@@ -1931,6 +1935,7 @@ function siteBadge(){
 const SVC_TYPES=["보안용역 도급업무","미화(위생관리)용역 도급업무","시설관리용역 도급업무","주차관리용역 도급업무","보안·미화용역 도급업무","보안·미화·시설 종합관리용역 도급업무","안내(리셉션)용역 도급업무","조경관리용역 도급업무","방역·소독용역 도급업무","구내식당(조리)용역 도급업무"];
 function syncSvcPick(){ const s=$("#m_svcPick"); if(!s) return; if(!s.options.length) s.innerHTML=`<optgroup label="용역 종류">${SVC_TYPES.map(x=>`<option>${x}</option>`).join("")}</optgroup><option value="">기타 (직접 입력)</option>`; const v=state.meta.svc||""; s.value=SVC_TYPES.includes(v)?v:""; }
 const GRP_COS=["에스텍시스템","에스텍베스트","에스텍에이스","에스텍퍼스트","에스텍세이프","에스텍플러스","에스텍프라임","에스텍에코","어울림에프"];
+try{ if(window.StecMaster) StecMaster.companies().forEach(function(x){ if (GRP_COS.indexOf(x.name) < 0) GRP_COS.push(x.name); if (x.lat != null && x.lng != null && !(GROUPDB.affs || {})[x.name] && x.name !== '에스텍시스템' && x.name !== '에스텍베스트') { GROUPDB.affs = GROUPDB.affs || {}; GROUPDB.affs[x.name] = {addr: x.addr || '', lat: +x.lat, lng: +x.lng, p: 'a'}; } }); }catch(e){} /*sm-gc2*/
 const grpCoOf=m=>GRP_COS.includes(m&&m.grpCo)?m.grpCo:"에스텍시스템";
 function grpOffices(co){
   if(co==="에스텍시스템") return (GROUPDB.offices||[]).map(o=>({n:o.n,k:o.hq||o.n,lat:o.lat,lng:o.lng,p:o.p,t:o.t}));
@@ -1971,6 +1976,7 @@ function fillBranchSel(){
   sel.innerHTML=`<option value="">— ${esc(co)} —</option>`+branchOpts(co).map(g=>`<optgroup label="${esc(g.g)}">${g.o.map(([v,l])=>`<option value="${esc(v)}">${esc(l)}</option>`).join("")}</optgroup>`).join("");
   sel.value=m.branch||"";
 }
+try{ if(window.StecMaster) (function(){ var M = StecMaster, same = function(a, b){ return M.norm(a) === M.norm(b); }, isBest = function(co){ return same(co, '에스텍베스트'); }; var _bo = branchOpts; branchOpts = function(co){ var r = _bo(co); if (isBest(co)) return r; var add = M.orgs().filter(function(o){ return same(o.company, co); }); if (add.length) r.push({g: co + ' 조직', o: add.map(function(o){ return [M.orgKey(o), o.name]; })}); return r; }; var _gs = grpSites; grpSites = function(co){ var r = _gs(co); if (isBest(co)) return r; M.sites().forEach(function(s, i){ var o = M.orgOf(s.org); if ((same(s.company, co) || (!s.company && o && same(o.company, co))) && s.lat != null && s.lng != null) r.push({id: 'm' + i, name: s.name, lat: +s.lat, lng: +s.lng, br: o ? M.orgKey(o) : '', tag: [o && o.name, s.work, s.total ? s.total + '명' : ''].filter(Boolean).join(' · ')}); }); return r; }; var _go = grpOffices; grpOffices = function(co){ var r = _go(co); if (isBest(co)) return r; M.orgs().forEach(function(o){ if (same(o.company, co) && o.lat != null && o.lng != null) r.push({n: co + ' ' + o.name, k: M.orgKey(o), lat: +o.lat, lng: +o.lng, p: 'a', t: o.type}); }); return r; }; })(); }catch(e){} /*sm-wrap*/
 function pickSysSite(s){
   const m=state.meta; if(m.mode!=="new"){ m.mode="new"; renderMode(); }
   m.grpCo="에스텍시스템"; m.siteId=null; m.geoInfo=null; m.client=s.name; $("#m_client").value=s.name;
