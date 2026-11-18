@@ -895,7 +895,7 @@ aside.rail{gap:14px}
 <script>try{var _t=localStorage.getItem("stec_theme");if(_t==="light"||_t==="dark")document.documentElement.setAttribute("data-theme",_t)}catch(e){}</script>
 <header class="topbar">
   <button type="button" class="logo-fig" id="logoHome" title="메인화면으로" aria-label="메인화면으로"><img src="__APPICON__" alt="S-Tec 견적 시스템 앱 아이콘"></button>
-  <div class="brand" title="에스텍 그룹 용역인력 견적시스템"><b>S-Tec-Quotation-System</b><span class="ver">Ver 7.9</span></div>
+  <div class="brand" title="에스텍 그룹 용역인력 견적시스템"><b>S-Tec-Quotation-System</b><span class="ver">Ver 8.0</span></div>
   <div class="sp"><div class="gstrip" id="gstrip" aria-hidden="true"></div></div>
   <div class="tb-home home-only" id="tbHome"></div>
   <div class="tb-actions">
@@ -3971,9 +3971,10 @@ function initTheme(){
    영상 파일은 videos/ 폴더(웹 주소·앱·아티팩트). PC에 내려받은 HTML 파일로 열면 웹 주소의 영상을 씀 */
 const VID_LIST=[
   {k:"S-TEC GROUP · 안전 NO.1 기업",l:"에스텍"},
-  {f:"v0",k:"S-TEC GROUP · 고객 맞춤 제안"},{f:"v1",k:"SECURITY · 경호 · 수행"},{f:"v2",k:"INFRA · 미화 · 위생관리"},
-  {f:"v3",k:"SECURITY · 주차관리"},{f:"v4",k:"INFRA · 방역 · 세니텍(SANITEC)"},{f:"v5",k:"INFRA · 시설관리"},
-  {f:"v6",k:"SECURITY · 물류 현장 안전관리"},{f:"v7",k:"SECURITY · 특수경비 · 설비 감시"},{f:"v8",k:"SECURITY · 행사 안전관리"},{f:"v9",k:"SECURITY · 시설경비"}];
+  {f:"v1",k:"S-TEC GROUP · 고객 맞춤 제안"},{f:"v2",k:"SECURITY · 경호 · 수행"},{f:"v3",k:"SECURITY · 주차관리"},
+  {f:"v4",k:"INFRA · 미화 · 위생관리"},{f:"v5",k:"INFRA · 방역 · 세니텍(SANITEC)"},{f:"v6",k:"INFRA · 시설관리"},
+  {f:"v7",k:"SECURITY · 집회 · 시위 현장 안전관리"},{f:"v8",k:"SECURITY · 물류 현장 안전관리"},{f:"v9",k:"SECURITY · 시설경비"},
+  {f:"v10",k:"SECURITY · 특수경비 · 설비 감시"},{f:"v11",k:"SECURITY · 행사 안전관리"}];
 const VID_FX=["mosaic","fade","zoom","iris"];
 const VID_WEB="https://sadness500-boop.github.io/S-Tec-Quotation-System/videos/";
 const VS={i:0,fxN:0,busy:false,bad:new Set(),vol:0.7,muted:true};
@@ -4052,7 +4053,7 @@ function initVideo(){
   /* 끝나기 직전에 다음 영상으로 전환 (마지막 장면에서 멈춰 보이지 않게) */
   both(x=>x.addEventListener("timeupdate",()=>{ if(x!==vidCur()||VS.busy||x.paused) return; const left=(x.duration||0)-x.currentTime; if(x.duration && left<0.9) vidNext(); }));
   both(x=>x.addEventListener("ended",()=>{ if(x===vidCur() && !VS.busy) vidNext(); }));
-  const dots=$("#vidDots"); if(dots){ dots.innerHTML=VID_LIST.map((it,i)=>`<button type="button" role="tab" aria-label="${it.l||i-1}번 영상 · ${esc(it.k)}" title="${esc(it.k)}">${it.l||i-1}</button>`).join("");
+  const dots=$("#vidDots"); if(dots){ dots.innerHTML=VID_LIST.map((it,i)=>`<button type="button" role="tab" aria-label="${it.l||i}번 영상 · ${esc(it.k)}" title="${esc(it.k)}">${it.l||i}</button>`).join("");
     [...dots.children].forEach((b,i)=>b.onclick=()=>{ if(i!==VS.i) vidNext(i); else playIntro(); }); vidPaintDots(); }
   v.addEventListener("playing",()=>{ if(VS.i===0) setTimeout(()=>{ if(!VS.busy && VS.i===0) vidPrep(vidNextIndex(0)); },1500); },{once:true});
   document.addEventListener("visibilitychange",()=>{ const c=vidCur(); if(document.hidden && !c.paused){ c.pause(); c._resume=true; } else if(!document.hidden && c._resume && !$("#p0").hidden){ c._resume=false; playIntro(); } });
