@@ -166,19 +166,26 @@ function ltData(o){
 /* ── zip (STORE) ── */
 const LT_CRC=(()=>{ const t=new Uint32Array(256); for(let n=0;n<256;n++){ let c=n; for(let k=0;k<8;k++) c=c&1?0xEDB88320^(c>>>1):c>>>1; t[n]=c>>>0; } return t; })();
 function ltCrc(u){ let c=0xFFFFFFFF; for(let i=0;i<u.length;i++) c=LT_CRC[(c^u[i])&255]^(c>>>8); return (c^0xFFFFFFFF)>>>0; }
-function ltZip(files){   // [[path, Uint8Array]]
+async function ltDeflate(u){
+  if(typeof CompressionStream!=="function") return null;
+  try{ const cs=new CompressionStream("deflate-raw"); const out=new Response(new Blob([u]).stream().pipeThrough(cs)).arrayBuffer(); return new Uint8Array(await out); }catch(e){ return null; }
+}
+async function ltZip(files){   // [[path, Uint8Array]] — mimetype은 맨 앞 · 무압축, 나머지는 deflate (한컴 저장 방식과 같게)
   const enc=new TextEncoder(), parts=[], cen=[]; let off=0;
   const d=new Date(), dt=((d.getHours()<<11)|(d.getMinutes()<<5)|(d.getSeconds()>>1)), dd=(((d.getFullYear()-1980)<<9)|((d.getMonth()+1)<<5)|d.getDate());
-  files.forEach(([p,data])=>{
-    const nm=enc.encode(p), crc=ltCrc(data), h=new DataView(new ArrayBuffer(30));
-    h.setUint32(0,0x04034b50,true); h.setUint16(4,20,true); h.setUint16(6,0x0800,true); h.setUint16(8,0,true); h.setUint16(10,dt,true); h.setUint16(12,dd,true);
-    h.setUint32(14,crc,true); h.setUint32(18,data.length,true); h.setUint32(22,data.length,true); h.setUint16(26,nm.length,true); h.setUint16(28,0,true);
-    parts.push(new Uint8Array(h.buffer),nm,data);
+  for(const [p,data] of files){
+    const nm=enc.encode(p), crc=ltCrc(data);
+    let body=data, method=0;
+    if(p!=="mimetype"){ const z=await ltDeflate(data); if(z && z.length<data.length){ body=z; method=8; } }
+    const h=new DataView(new ArrayBuffer(30));
+    h.setUint32(0,0x04034b50,true); h.setUint16(4,20,true); h.setUint16(6,0,true); h.setUint16(8,method,true); h.setUint16(10,dt,true); h.setUint16(12,dd,true);
+    h.setUint32(14,crc,true); h.setUint32(18,body.length,true); h.setUint32(22,data.length,true); h.setUint16(26,nm.length,true); h.setUint16(28,0,true);
+    parts.push(new Uint8Array(h.buffer),nm,body);
     const c=new DataView(new ArrayBuffer(46));
-    c.setUint32(0,0x02014b50,true); c.setUint16(4,20,true); c.setUint16(6,20,true); c.setUint16(8,0x0800,true); c.setUint16(10,0,true); c.setUint16(12,dt,true); c.setUint16(14,dd,true);
-    c.setUint32(16,crc,true); c.setUint32(20,data.length,true); c.setUint32(24,data.length,true); c.setUint16(28,nm.length,true); c.setUint32(42,off,true);
-    cen.push(new Uint8Array(c.buffer),nm); off+=30+nm.length+data.length;
-  });
+    c.setUint32(0,0x02014b50,true); c.setUint16(4,20,true); c.setUint16(6,20,true); c.setUint16(8,0,true); c.setUint16(10,method,true); c.setUint16(12,dt,true); c.setUint16(14,dd,true);
+    c.setUint32(16,crc,true); c.setUint32(20,body.length,true); c.setUint32(24,data.length,true); c.setUint16(28,nm.length,true); c.setUint32(42,off,true);
+    cen.push(new Uint8Array(c.buffer),nm); off+=30+nm.length+body.length;
+  }
   const csz=cen.reduce((s,x)=>s+x.length,0), e=new DataView(new ArrayBuffer(22));
   e.setUint32(0,0x06054b50,true); e.setUint16(8,files.length,true); e.setUint16(10,files.length,true); e.setUint32(12,csz,true); e.setUint32(16,off,true);
   return new Blob([...parts,...cen,new Uint8Array(e.buffer)]);
@@ -227,7 +234,7 @@ function ltFill(doc, kind, data){
 function ltParse(u8){ return new DOMParser().parseFromString(new TextDecoder().decode(u8),"application/xml"); }
 function ltSer(doc){ let s=new XMLSerializer().serializeToString(doc); if(!/^<\?xml/.test(s)) s='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+s; return new TextEncoder().encode(s); }
 
-function ltBuild(kind, data, opt){
+async function ltBuild(kind, data, opt){
   if(!LETTER_TPL[kind]) throw new Error("공문 양식이 없습니다");
   const files=ltUnzip(LETTER_TPL[kind]);
   const main = kind==="docx" ? "word/document.xml" : "Contents/section0.xml";
@@ -236,15 +243,22 @@ function ltBuild(kind, data, opt){
   if(kind==="hwpx"){
     const HP="http://www.hancom.co.kr/hwpml/2011/paragraph";
     Array.from(doc.getElementsByTagNameNS(HP,"linesegarray")).forEach(x=>x.parentNode.removeChild(x));   // 한컴이 줄 배치를 다시 계산
+    // 문단 id를 모두 겹치지 않게(한컴이 붙여넣기 때 하듯) — 첫 문단(구역 설정)은 그대로
+    Array.from(doc.getElementsByTagNameNS(HP,"p")).forEach((p,i)=>{ if(i) p.setAttribute("id",String(i)); });
     const ids=new Set();
     Array.from(doc.getElementsByTagNameNS(HP,"tbl")).forEach(tb=>{
       let id=tb.getAttribute("id"); while(ids.has(id)) id=String(1000000000+Math.floor(Math.random()*1000000000)); ids.add(id); tb.setAttribute("id",id);
       const trs=Array.from(tb.childNodes).filter(n=>n.nodeType===1&&n.localName==="tr");
       tb.setAttribute("rowCnt",String(trs.length));
-      trs.forEach((tr,ri)=>Array.from(tr.childNodes).filter(n=>n.nodeType===1&&n.localName==="tc").forEach(tc=>{ const a=Array.from(tc.childNodes).find(n=>n.nodeType===1&&n.localName==="cellAddr"); if(a) a.setAttribute("rowAddr",String(ri)); }));
+      const kid=(el,ln)=>Array.from(el.childNodes).find(n=>n.nodeType===1&&n.localName===ln);
+      let H=0;
+      trs.forEach((tr,ri)=>{ let rh=0; Array.from(tr.childNodes).filter(n=>n.nodeType===1&&n.localName==="tc").forEach(tc=>{ const a=kid(tc,"cellAddr"); if(a) a.setAttribute("rowAddr",String(ri)); const sp=kid(tc,"cellSpan"), sz=kid(tc,"cellSz"); if(sz && (!sp || +sp.getAttribute("rowSpan")===1)) rh=Math.max(rh,+sz.getAttribute("height")||0); }); H+=rh; });
+      const tsz=kid(tb,"sz"); if(tsz && H>0) tsz.setAttribute("height",String(H));
     });
     if(!opt.stampImg) Array.from(doc.getElementsByTagNameNS(HP,"pic")).forEach(pc=>{ if(/binaryItemIDRef="image2"/.test(new XMLSerializer().serializeToString(pc))) pc.parentNode.removeChild(pc); });
     else { const k=files.findIndex(f=>f[0]==="BinData/image2.bmp"); if(k>=0) files[k][1]=opt.stampImg.bmp; }
+    const st=files.findIndex(f=>f[0]==="settings.xml");
+    if(st>=0) files[st][1]=new TextEncoder().encode(new TextDecoder().decode(files[st][1]).replace(/<ha:CaretPosition[^>]*\/>/,'<ha:CaretPosition listIDRef="0" paraIDRef="0" pos="16"/>'));
     const prv=files.findIndex(f=>f[0]==="Preview/PrvText.txt");
     if(prv>=0) files[prv][1]=new TextEncoder().encode(`${data.coFull}\r\n${data.docPfx} : 제${data.docNum}호  ${data.date}\r\n수  신 : ${data.client}\r\n제  목 : ${data.title}\r\n`);
   } else if(opt.stampImg){ const k=files.findIndex(f=>f[0]==="word/media/image2.png"); if(k>=0) files[k][1]=opt.stampImg.png; }
@@ -252,7 +266,7 @@ function ltBuild(kind, data, opt){
     Array.from(doc.getElementsByTagNameNS("http://schemas.openxmlformats.org/wordprocessingml/2006/main","drawing")).forEach(dr=>{ if(/r:embed="rId6"/.test(new XMLSerializer().serializeToString(dr))){ const r=dr.parentNode; r.parentNode.removeChild(r); } });
   }
   files[i][1]=ltSer(doc);
-  return ltZip(files);
+  return await ltZip(files);
 }
 
 /* ── 직인 그림 (이 기기에만 보관 · 공개 저장소에는 넣지 않음) ── */
@@ -271,16 +285,63 @@ function ltStampImg(dataUrl){
 
 /* ── 화면 ── */
 function ltCanUse(){ return !!(state && state.compare && state.roles.length); }
-function letterBtns(){ const on=ltCanUse(); ["btnLetter","btnLetter2"].forEach(id=>{ const b=document.getElementById(id); if(b) b.hidden=!on; }); }
-function openLetter(){
-  if(!ltCanUse()){ toast("‘갱신 견적’을 만들거나, 갱신 견적 엑셀을 ‘견적서 불러오기’로 연 뒤에 공문을 만들 수 있습니다"); return; }
-  const S=state.set, isBest=/에스텍베스트/.test(S.coName||"");
-  ltSites=[{st:JSON.parse(JSON.stringify(state)), name:state.meta.client||"사업장", note:""}];
+function letterBtns(){ ["btnLetter","btnLetter2"].forEach(id=>{ const b=document.getElementById(id); if(b) b.hidden=false; }); }
+function letterClick(){ if(ltCanUse()) openLetter(state); else ltOpenSource(); }
+
+/* ── 공문 만들 견적 고르기 (메인 화면에서 바로) ── */
+let ltAfterRenew=false;
+function ltOpenSource(){
+  document.getElementById("ltOv")?.remove();
+  const cur=ltCanUse()?state:null;
+  const saved=savedList().map((q,i)=>({q,i})).filter(({q})=>q.state&&q.state.compare);
+  const ov=document.createElement("div"); ov.className="qr-ov rn-ov"; ov.id="ltOv";
+  ov.innerHTML=`<div class="rn-pop" role="dialog" aria-modal="true" aria-labelledby="ltsTitle">
+    <div class="rn-head"><div><h2 id="ltsTitle">📄 갱신 공문 · 견적서 불러오기</h2>
+      <p class="sub">공문에 넣을 견적을 고르세요. 견적서 엑셀의 <b>전년 ↔ 익년도</b> 시급·4대보험 요율·월 도급비 차이가 그대로 들어갑니다.</p></div>
+      <button class="btn sm ghost" data-x aria-label="닫기">✕</button></div>
+    <div class="rn-body">
+      <section class="rn-card"><h3><span class="rn-ic">📁</span>견적서 파일 불러오기 <small>엑셀(xlsx·xls·csv) · 이 프로그램의 JSON</small></h3>
+        <label class="rn-drop" id="ltsDrop" for="ltsFile"><b>견적서 파일 선택</b><span>또는 여기로 끌어다 놓기</span>
+          <small>① 이 프로그램에서 내보낸 <b>갱신 견적 엑셀</b> → 바로 공문 · ② <b>당해년 견적서</b>(이 프로그램 또는 다른 양식 엑셀) → 익년도 갱신 견적을 먼저 산출한 뒤 공문</small></label>
+        <input type="file" id="ltsFile" accept=".xlsx,.xlsm,.xls,.csv,.ods,.json,.pdf,application/pdf" hidden>
+        <p class="rn-err" id="ltsMsg" hidden></p></section>
+      ${cur||saved.length?`<section class="rn-card"><h3><span class="rn-ic">💾</span>이미 만든 갱신 견적</h3><div class="rn-list">
+        ${cur?`<div class="rn-item"><span><b>${esc(cur.meta.client||"지금 화면 견적")}</b><small>지금 화면 · ${cur.compare.year} → ${cur.meta.year}년</small></span><button class="btn sm" data-cur>선택</button></div>`:""}
+        ${saved.map(({q,i})=>`<div class="rn-item"><span><b>${esc(q.name)}</b><small>이 기기 저장 · ${esc(q.at)}</small></span><button class="btn sm" data-sv="${i}">선택</button></div>`).join("")}
+      </div></section>`:""}
+    </div></div>`;
+  ov.addEventListener("click",e=>{ if(e.target===ov||e.target.closest("[data-x]")) ov.remove(); });
+  document.body.appendChild(ov);
+  const msg=t=>{ const m=document.getElementById("ltsMsg"); m.hidden=!t; m.textContent=t||""; };
+  ov.querySelector("[data-cur]")?.addEventListener("click",()=>openLetter(state));
+  ov.querySelectorAll("[data-sv]").forEach(b=>b.onclick=()=>{ try{ openLetter(normState(JSON.parse(JSON.stringify(savedList()[+b.dataset.sv].state)))); }catch(e){ msg(e.message||String(e)); } });
+  const read=async f=>{
+    if(/\.pdf$/i.test(f.name)){ msg("PDF 견적서는 표 안의 숫자(시급·인원·수당·요율)를 정확히 읽어낼 수 없어 공문 숫자가 틀릴 수 있습니다. 같은 견적서의 엑셀 파일(xlsx·xls)을 골라 주세요. PDF만 있으면 엑셀에서 「다른 이름으로 저장 → Excel 통합 문서」로 바꾼 뒤 불러오면 됩니다."); return; }
+    msg("견적서를 읽는 중…");
+    try{
+      const res=await stateFromFile(f.name, await f.arrayBuffer());
+      if(res.kind==="state" && res.st.compare){ msg(""); openLetter(res.st); return; }
+      // 당해년 견적 → 갱신 견적 화면에서 익년도 산출 후 공문 창을 엽니다
+      ltAfterRenew=true; ov.remove(); openRenew(); rnResult(res, f.name);
+      toast("당해년 견적서입니다 · ‘익년도 갱신 견적 만들기’를 누르면 갱신 견적을 산출한 뒤 공문 창이 열립니다");
+    }catch(e){ console.error(e); msg(typeof fileErr==="function"?fileErr(e):(e.message||String(e))); }
+  };
+  const fi=document.getElementById("ltsFile"); fi.onchange=()=>{ const f=fi.files[0]; fi.value=""; if(f) read(f); };
+  const dz=document.getElementById("ltsDrop");
+  ["dragenter","dragover"].forEach(t=>dz.addEventListener(t,e=>{ e.preventDefault(); dz.classList.add("on"); }));
+  ["dragleave","drop"].forEach(t=>dz.addEventListener(t,e=>{ e.preventDefault(); dz.classList.remove("on"); }));
+  dz.addEventListener("drop",e=>{ const f=e.dataTransfer.files[0]; if(f) read(f); });
+}
+function openLetter(base){
+  if(!base || !base.compare){ ltOpenSource(); return; }
+  document.getElementById("ltOv")?.remove();
+  const S=base.set, isBest=/에스텍베스트/.test(S.coName||"");
+  ltSites=[{st:JSON.parse(JSON.stringify(base)), name:base.meta.client||"사업장", note:""}];
   const d=today().split("-");
   const ov=document.createElement("div"); ov.className="qr-ov rn-ov"; ov.id="ltOv";
   ov.innerHTML=`<div class="rn-pop" role="dialog" aria-modal="true" aria-labelledby="ltTitle">
     <div class="rn-head"><div><h2 id="ltTitle">📄 갱신 공문 만들기 · Word · 한글</h2>
-      <p class="sub">이 견적(엑셀 기준)의 <b>${state.compare.year}년 ↔ ${state.meta.year}년</b> 최저시급 · 4대보험 요율 · 월 도급비 차이가 공문과 계약갱신(案)에 그대로 들어갑니다.</p></div>
+      <p class="sub">이 견적(엑셀 기준)의 <b>${base.compare.year}년 ↔ ${base.meta.year}년</b> 최저시급 · 4대보험 요율 · 월 도급비 차이가 공문과 계약갱신(案)에 그대로 들어갑니다.</p></div>
       <button class="btn sm ghost" data-x aria-label="닫기">✕</button></div>
     <div class="rn-body">
       <section class="rn-card"><h3><span class="rn-ic">✉️</span>공문 머리</h3>
@@ -289,8 +350,8 @@ function openLetter(){
           <label>문서번호<input class="inp" id="lt_no" value="${d[0]}-${d[1]}${d[2]}"></label>
           <label>시행일<input class="inp" id="lt_date" type="date" value="${today()}"></label>
           <label>참조<input class="inp" id="lt_ref" value="재계약 담당"></label>
-          <label class="w2">수신 (고객사)<input class="inp" id="lt_client" value="${esc(state.meta.client||"")}"></label>
-          <label class="w2">제목 <small>(비우면 자동: ${state.meta.year}년도 ○○ 용역 재계약 갱신 협조의 件)</small><input class="inp" id="lt_title" value=""></label>
+          <label class="w2">수신 (고객사)<input class="inp" id="lt_client" value="${esc(base.meta.client||"")}"></label>
+          <label class="w2">제목 <small>(비우면 자동: ${base.meta.year}년도 ○○ 용역 재계약 갱신 협조의 件)</small><input class="inp" id="lt_title" value=""></label>
           <label>회사 대표전화<input class="inp" id="lt_tel" value="${isBest?"051-897-5280":""}" placeholder="051-000-0000"></label>
           <label>머리글 전화·팩스 줄<input class="inp" id="lt_telline" value="${isBest?"[TEL : 051)897-5280 / FAX : 051)897-5284]":""}"></label>
           <label>문의 담당자<input class="inp" id="lt_person" value="${esc([S.coPerson,S.coPersonTitle].filter(Boolean).join(" "))}"></label>
@@ -307,12 +368,13 @@ function openLetter(){
         <div class="lt-add" style="margin-top:8px"><select class="inp" id="lt_saved" style="flex:1;min-width:180px"></select><button class="btn sm" id="lt_addSaved">저장된 견적 추가</button>
           <button class="btn sm" id="lt_addFile">견적서 엑셀 추가</button><input type="file" id="lt_file" accept=".xlsx,.xlsm,.json" hidden></div></section>
       <section class="rn-card"><h3><span class="rn-ic">📊</span>공문에 들어갈 숫자 미리보기</h3><div id="ltPrev"></div></section>
-      <div class="lt-btns"><button class="btn" data-x>닫기</button><button class="btn pri" id="lt_docx">Word 공문 (.docx)</button><button class="btn pri" id="lt_hwpx">한글 공문 (.hwpx)</button></div>
+      <div class="lt-btns"><button class="btn" id="lt_src" style="margin-right:auto">📁 다른 견적서 불러오기</button><button class="btn" data-x>닫기</button><button class="btn pri" id="lt_docx">Word 공문 (.docx)</button><button class="btn pri" id="lt_hwpx">한글 공문 (.hwpx)</button></div>
+      <p class="hint" style="margin:0;text-align:right">한글 공문(.hwpx)은 한컴오피스 2014 이후 버전에서 열립니다. 한글이 오래된 버전이면 Word 공문을 한글에서 열어 「다른 이름으로 저장 → 한글 문서(.hwp)」로 저장하세요.</p>
     </div></div>`;
   ov.addEventListener("click",e=>{ if(e.target===ov||e.target.closest("[data-x]")) ov.remove(); });
   document.body.appendChild(ov);
   const g=id=>document.getElementById(id);
-  const Y=+state.meta.year;
+  const Y=+base.meta.year;
   const others=savedList().map((q,i)=>({q,i})).filter(({q})=>q.state&&q.state.compare&&+q.state.meta.year===Y);
   g("lt_saved").innerHTML=others.length?others.map(({q,i})=>`<option value="${i}">${esc(q.name)} · ${esc(q.at)}</option>`).join(""):`<option value="">(${Y}년 갱신 견적으로 저장된 것이 없습니다)</option>`;
   g("lt_addSaved").onclick=()=>{ const v=g("lt_saved").value; if(v==="") return; const q=savedList()[+v]; try{ const st=normState(JSON.parse(JSON.stringify(q.state))); ltSiteCalc(st); ltSites.push({st,name:st.meta.client||q.name,note:""}); ltRender(); }catch(e){ toast(e.message||String(e)); } };
@@ -335,12 +397,13 @@ function openLetter(){
   const make=async kind=>{
     remember();
     try{ const o=opts(); const src=o.stamp?(ltStampGet()||ltStampGet.tmp||""):""; o.stampImg=src?await ltStampImg(src):null;
-      const data=ltData(o); const blob=ltBuild(kind,data,o);
+      const data=ltData(o); const blob=await ltBuild(kind,data,o);
       const dd=(o.date||today()).slice(2).replace(/-/g,"");
       await offerFile(`${dd} ${data.client||"고객사"} ${data.Y}년 계약갱신 공문.${kind}`, blob, kind==="docx"?"application/vnd.openxmlformats-officedocument.wordprocessingml.document":"application/hwp+zip");
       toast(kind==="docx"?"Word 공문을 만들었습니다":"한글 공문(.hwpx)을 만들었습니다 · 한컴오피스 2014 이상에서 열립니다");
     }catch(err){ console.error(err); toast("공문 생성 중 오류: "+(err&&err.message||err)); }
   };
+  g("lt_src").onclick=()=>ltOpenSource();
   g("lt_docx").onclick=()=>make("docx"); g("lt_hwpx").onclick=()=>make("hwpx");
   ltRender();
 }
@@ -371,9 +434,10 @@ function ltPreview(){
   }catch(e){ box.innerHTML=`<p class="hint">${esc(e.message||String(e))}</p>`; }
 }
 (function(){
-  const add=(afterId,id,cls)=>{ const a=document.getElementById(afterId); if(!a || document.getElementById(id)) return; const b=document.createElement("button"); b.type="button"; b.id=id; b.className=cls; b.textContent="갱신 공문"; b.title="갱신 견적(엑셀 기준) 전년 ↔ 익년도 차이로 계약갱신 협조 공문을 Word·한글로 만듭니다"; b.hidden=true; b.onclick=openLetter; a.insertAdjacentElement("afterend",b); };
-  const init=()=>{ add("btnXlsx","btnLetter","tbtn est-only"); add("btnXlsx2","btnLetter2","btn"); letterBtns(); };
+  const add=(afterId,id,cls)=>{ const a=document.getElementById(afterId); if(!a || document.getElementById(id)) return; const b=document.createElement("button"); b.type="button"; b.id=id; b.className=cls; b.textContent="갱신 공문"; b.title="갱신 견적(엑셀 기준) 전년 ↔ 익년도 차이로 계약갱신 협조 공문을 Word·한글로 만듭니다"; b.onclick=letterClick; a.insertAdjacentElement("afterend",b); };
+  const init=()=>{ add("btnXlsx","btnLetter","tbtn"); add("btnXlsx2","btnLetter2","btn"); letterBtns(); };
   if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",init); else init();
-  const _r=window.recalc; if(typeof recalc==="function"){ const orig=recalc; recalc=function(){ const v=orig.apply(this,arguments); try{ letterBtns(); }catch(e){} return v; }; }
+  if(typeof rollover==="function"){ const ro=rollover; rollover=function(){ const v=ro.apply(this,arguments); if(ltAfterRenew){ ltAfterRenew=false; setTimeout(()=>{ if(ltCanUse()) openLetter(state); },400); } return v; }; }
+  if(typeof recalc==="function"){ const orig=recalc; recalc=function(){ const v=orig.apply(this,arguments); try{ letterBtns(); }catch(e){} return v; }; }
 })();
 </script>
