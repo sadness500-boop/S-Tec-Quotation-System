@@ -25,6 +25,12 @@ import os
 if os.path.exists("src/app-access.html"): t = t + "\n" + rd("src/app-access.html")
 # 견적 → 에스텍 제안서 제작시스템 연동(「📑 제안서로 보내기」) — src/proposal-link.html
 if os.path.exists(p("src/proposal-link.html")): t = t + "\n" + rd("src/proposal-link.html")
+# 갱신 공문(Word·한글) — src/renewal-letter.html + 공문 양식(assets/letter/*.docx·hwpx)
+if os.path.exists(p("src/renewal-letter.html")):
+    tpl = {k: base64.b64encode(open(p(f"assets/letter/renewal-letter.{k}"),"rb").read()).decode() for k in ("docx","hwpx")}
+    t = t + "\n" + rd("src/renewal-letter.html").replace("/*__LETTER_TPL__*/{}", json.dumps(tpl))
+# 공통 상단 버튼(stec-bar) · 빈 공간 없는 배치(stec-layout) — 메인 프로그램이 넣어 주는 공통 꼬리 — src/shell-tail.html
+if os.path.exists(p("src/shell-tail.html")): t = t + rd("src/shell-tail.html")
 os.makedirs(p("dist"), exist_ok=True)
 open(p("dist/artifact.html"), "w", encoding="utf-8").write(t)
 html = '<!doctype html>\n<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#1b2a86"><link rel="manifest" href="manifest.webmanifest"><link rel="icon" type="image/png" href="favicon.png"><link rel="apple-touch-icon" href="apple-touch-icon.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="에스텍 견적"></head><body>\n' + t + '\n</body></html>'

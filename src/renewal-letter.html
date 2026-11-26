@@ -1,0 +1,379 @@
+<!-- 갱신 공문(계약갱신 협조 공문 · 계약갱신(案)) — Word(.docx) · 한글(.hwpx) 만들기 · Rat Rae Choi -->
+<style id="ltStyle">
+.lt-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 12px}
+.lt-grid label{display:flex;flex-direction:column;gap:3px;font-size:12.5px;color:var(--muted);min-width:0}
+.lt-grid label.w2{grid-column:1/-1}
+.lt-grid .inp{width:100%}
+.lt-sites{display:flex;flex-direction:column;gap:6px}
+.lt-site{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr) auto;gap:6px 8px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+.lt-site .nums{font-size:12.5px;color:var(--muted);line-height:1.45}
+.lt-site .nums b{color:var(--ink)}
+.lt-site .note{grid-column:1/-1}
+.lt-fac{width:100%;border-collapse:collapse;font-size:12.5px}
+.lt-fac th,.lt-fac td{border:1px solid var(--line);padding:5px 7px;text-align:left}
+.lt-fac th{background:var(--line-2,#eef1f8);font-weight:600}
+.lt-fac td.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.lt-fac tr.s td{font-weight:700;background:rgba(27,42,134,.06)}
+.lt-btns{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}
+.lt-add{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+@media (max-width:640px){ .lt-grid{grid-template-columns:1fr} .lt-site{grid-template-columns:1fr} }
+</style>
+<script id="stec-renewal-letter">
+/* =====================================================================
+ * 갱신 공문 만들기 — 「갱신 견적」 또는 「견적서 불러오기」로 들어온 견적(엑셀 기준)의
+ * 전년(당해년) ↔ 익년도 시급 · 4대보험 요율 · 도급비 차이를 그대로 공문에 넣습니다.
+ *  ● Word(.docx) : 사용자가 준 워드 공문 양식
+ *  ● 한글(.hwpx) : 사용자가 준 한글 공문 양식 (한컴오피스 2014 이상에서 열림)
+ * Designed & Developed by Rat Rae Choi
+ * ===================================================================== */
+const LETTER_TPL = /*__LETTER_TPL__*/{};
+const LT_MW_HIST = {2019:8350,2020:8590,2021:8720,2022:9160,2023:9620,2024:9860,2025:10030,2026:10320,2027:10700};
+const LT_CAT = {sec:"경비",cln:"미화",park:"주차",fac:"시설관리",spc:"특수",etc:"기타"};
+const ltMw = y => (RATES[y] && RATES[y].minWage) || LT_MW_HIST[y] || null;
+const ltN = (v,d=2) => (Math.round(v*Math.pow(10,d))/Math.pow(10,d)).toFixed(d);
+const ltRate = v => { const x=Math.round((+v||0)*10000)/10000; return Number.isInteger(x)?x.toFixed(1):String(x); };   // 5.0 · 4.75 · 3.595 · 13.14
+const ltPd = v => (Math.round(Math.abs(v)*10000)/10000).toFixed(Math.max(2,(String(Math.round(Math.abs(v)*10000)/10000).split(".")[1]||"").length));   // 0.25 · 0.10 · 0.0276
+const ltK = v => won(Math.round((+v||0)/1000));
+const ltPP = v => { const x=Math.round(v*100)/100; return (x>0?"+":x<0?"-":"")+Math.abs(x).toFixed(2)+"%p"; };
+const ltIncTxt = r => Math.abs(r)<0.005 ? "동결" : `${ltN(Math.abs(r))}% ${r>0?"인상":"인하"}`;
+const ltCo = S => (S.coName||"").replace(/㈜|\(주\)|주식회사/g,"").trim();
+let ltSites = [];   // [{st, name, note}]
+
+/* ── 한 견적(사업장)의 전년 ↔ 익년도 숫자 ── */
+function ltSiteCalc(st){
+  const C=st.compare; if(!C) throw new Error("갱신 견적(전년 대비 비교가 있는 견적)이 아닙니다");
+  const R=calcAll(st), S=st.set, m0=+C.monthAll||0, m1=+R.monthAll||0;
+  const cats=[], byCat={};
+  const f={cnt:0, wage:0, ins:0, exp:0, gp:0};
+  let heads0=0;
+  R.rows.forEach(({r,L})=>{
+    const P=r.prevL||null, n1=+L.count||0;
+    if(!byCat[r.cat]){ byCat[r.cat]={cat:CATS[r.cat]?CATS[r.cat].short:r.cat, key:r.cat, n0:0,a0:0,n1:0,a1:0, ranks:{}}; cats.push(byCat[r.cat]); }
+    const g=byCat[r.cat];
+    g.n1+=n1; g.a1+=(+L.price||0)*n1; if(n1) g.ranks[r.rank]=(g.ranks[r.rank]||0)+n1;
+    if(P){
+      const n0=+P.count||0, p0=+P.price||0; heads0+=n0;
+      g.n0+=n0; g.a0+=p0*n0;
+      f.cnt += (n1-n0)*p0;
+      const gr = P.direct ? (L.direct/P.direct-1) : 0, base=(+P.indirect||0)*gr;
+      f.wage += n1*((L.direct-P.direct) + base);
+      f.ins  += n1*((L.indirect-P.indirect) - base);
+      f.exp  += n1*((L.expense||0)-(P.expense||0));
+      f.gp   += n1*(((L.ga||0)+(L.profit||0))-((P.ga||0)+(P.profit||0)));
+    } else f.cnt += n1*(+L.price||0);
+  });
+  const RK={"남미화원":"男","여미화원":"女"};
+  cats.forEach(g=>{ g.note=Object.entries(g.ranks).map(([k,v])=>(RK[k]||k)+v).join(", "); });
+  const sep1=R.sepLine?R.sepLine.total:0, sep0=+C.sep||0;
+  return {st, C, R, S, Y:+st.meta.year, Y0:+C.year, m0, m1, cats, f, heads0: heads0||C.heads||0, heads1:R.heads, sep0, sep1,
+    rate: m0 ? (m1-m0)/m0*100 : 0, months:R.contractMonths||12};
+}
+
+/* ── 공문 데이터 ── */
+function ltData(o){
+  const calcs=ltSites.map(x=>({...ltSiteCalc(x.st), name:x.name, note:x.note}));
+  const A=calcs[0], S=A.S, P=A.C.setFull||A.C.set||{}, Y=A.Y, Y0=A.Y0;
+  const sum=k=>calcs.reduce((s,x)=>s+(+x[k]||0),0);
+  const M0=sum("m0"), M1=sum("m1"), tot=M0?(M1-M0)/M0*100:0;
+  const catKeys=Object.keys(LT_CAT).filter(k=>calcs.some(x=>x.cats.some(g=>g.key===k)));
+  const svc=catKeys.map(k=>LT_CAT[k]||k).filter((v,i,a)=>a.indexOf(v)===i).join("·")||"용역";
+  // 최저시급
+  const mw={m1:ltMw(Y0-1), 0:+P.minWage||ltMw(Y0), 1:+S.minWage||ltMw(Y)};
+  const mwPrev={m1:ltMw(Y0-2), 0:mw.m1, 1:mw[0]};
+  const mwCell=v=>v?won(v):"-", incCell=k=>mw[k]&&mwPrev[k]?won(mw[k]-mwPrev[k]):"-", rCell=k=>mw[k]&&mwPrev[k]?ltN((mw[k]-mwPrev[k])/mwPrev[k]*100,1)+"%":"-";
+  const mwInc=mw[1]-mw[0], mwR=mw[0]?mwInc/mw[0]*100:0;
+  const tent=(RATES[Y]&&RATES[Y].tentative)||[];
+  const mwFix=RATES[Y] && !tent.includes("minWage") && Y<=2027;
+  // 4대보험
+  const INS=[["pension","국민연금"],["health","건강보험"],["ltc","장기요양보험"],["emp","고용보험"],["ind","산재보험"]];
+  const up=[], down=[], same=[], NM={pension:"국민연금",health:"건강보험",ltc:"장기요양",emp:"고용보험",ind:"산재보험"};
+  const ins=INS.map(([k,l])=>{
+    const p=+P[k]||0, c=+S[k]||0, d=Math.round((c-p)*10000)/10000;
+    if(k==="ind" && !d) return null;
+    (d>0?up:d<0?down:same).push(NM[k]);
+    const effP=k==="ltc"?(+P.health||0)*p/100:p, effC=k==="ltc"?(+S.health||0)*c/100:c, de=effC-effP;
+    const st=!d?"동결":d>0?"인상":"인하";
+    const note = !d ? "" : k==="pension" ? (d>0?"연금개혁 단계적 인상":"요율 변경") : k==="ltc"||k==="health" ? `${Y}년 요율 의결` : k==="emp" ? (d>0?"실업급여 요율 인상":"고용보험 요율 변경") : "산재보험 요율 변경";
+    const L2=v=>(+v).toFixed(2);
+    return {l, p: k==="ltc"?`건강보험료의 ${L2(p)}%`:ltRate(p)+"%", c: k==="ltc"?`건강보험료의 ${L2(c)}%`:ltRate(c)+"%",
+      d: !d?"동결": k==="ltc"? st : (d>0?"+":"-")+ltPd(d)+"%p", note,
+      pH: k==="ltc"?`${ltRate(effP)}%(건강보험의 ${L2(p)}%)`:ltRate(p)+"%", cH: k==="ltc"?`${ltRate(effC)}%(건강보험의 ${L2(c)}%)`:ltRate(c)+"%",
+      dp: Math.abs(de)<0.00005?"-":ltPd(de)+"%p", dr: !p||!d?"-":ltN(Math.abs(d)/p*100,1)+"%", st};
+  }).filter(Boolean);
+  const insLine = (up.length||down.length)
+    ? `사업주 부담분 기준, ${[up.length?up.join("·")+" 요율 인상분":"", down.length?down.join("·")+" 요율 인하분":""].filter(Boolean).join(" · ")} 반영${same.length?` (${same.join("·")} 동결)`:""}`
+    : "사업주 부담분 기준, 4대보험 요율 전년과 동일 (동결)";
+  // 인상 요인 (사업장 합산 · 전년 월 도급비 대비 %p)
+  const F={cnt:0,wage:0,ins:0,exp:0,gp:0}; calcs.forEach(x=>Object.keys(F).forEach(k=>F[k]+=x.f[k]));
+  const other=(M1-M0)-(F.cnt+F.wage+F.ins+F.exp+F.gp);
+  const H0=sum("heads0"), H1=sum("heads1");
+  const ga0=+P.ga, pf0=+P.profit, ga1=+S.ga, pf1=+S.profit;
+  const facs=[
+    {l:"최저임금 인상 (보험료 기준액 증가분 포함)", d:`${won(mw[0])}원 → ${won(mw[1])}원 (${mwInc>=0?"+":""}${ltN(mwR,1)}%)`, x:F.wage},
+    {l:"4대보험 요율 변동", d: up.concat(down).length?up.concat(down).join("·"):"요율 동일", x:F.ins},
+    {l:"제경비 변동 (복리후생·교육훈련·부대비용 등)", d:"물가·기준 변동 반영", x:F.exp},
+    {l:"일반관리비·기업이윤", d:(ga0===ga1&&pf0===pf1)?`요율 동일 (${ga1}%·${pf1}%, 원가 연동)`:`${ga0}%·${pf0}% → ${ga1}%·${pf1}%`, x:F.gp}
+  ];
+  if(Math.abs(F.cnt)>=1) facs.push({l:"인원·근무형태 변동", d:`${H0}명 → ${H1}명`, x:F.cnt});
+  if(M0 && Math.abs(other/M0*100)>=0.005) facs.push({l:"단수정리·부대비용 등", d:"천원 미만 절삭 · 별도 청구 부대비용", x:other});
+  else if(facs.length) facs[0].x+=other;
+  const totR=Math.round(tot*100)/100;
+  facs.forEach(fc=>fc.v=M0?Math.round(fc.x/M0*10000)/100:0);
+  const gap=Math.round((totR-facs.reduce((s,fc)=>s+fc.v,0))*100)/100;
+  if(gap && facs.length){ const big=facs.reduce((a,b)=>Math.abs(b.v)>Math.abs(a.v)?b:a); big.v=Math.round((big.v+gap)*100)/100; }
+  const fac=facs.map((fc,i)=>({no:String(i+1), l:fc.l, d:fc.d, dH:fc.d?` (${fc.d})`:"", v:ltPP(fc.v)}));
+  // 사업장
+  const sites=calcs.map((x,i)=>{
+    const n0=x.cats.reduce((s,g)=>s+g.n0,0), n1=x.cats.reduce((s,g)=>s+g.n1,0), a0=x.cats.reduce((s,g)=>s+g.a0,0), a1=x.cats.reduce((s,g)=>s+g.a1,0);
+    return {no:String(i+1), name:x.name, note:x.note||"", m0:won(x.m0), m1:won(x.m1), rateTxt:ltIncTxt(x.rate),
+      cats:x.cats.map(g=>({cat:g.cat, n0:g.n0?String(g.n0):"-", u0:g.n0?ltK(g.a0/g.n0):"-", a0:g.n0?ltK(g.a0):"-", n1:g.n1?String(g.n1):"-", u1:g.n1?ltK(g.a1/g.n1):"-", a1:g.n1?ltK(g.a1):"-", note:g.note})),
+      n0:String(n0), u0:n0?ltK(a0/n0):"-", a0:ltK(a0), n1:String(n1), u1:n1?ltK(a1/n1):"-", a1:ltK(a1), k0:ltK(x.m0), k1:ltK(x.m1),
+      sumNote: x.sep1||x.sep0 ? `부대비용(별도) ${ltK(x.sep0)} → ${ltK(x.sep1)}` : ""};
+  });
+  const names=sites.map(s=>s.name);
+  const client=o.client||A.st.meta.client||"";
+  const multi=sites.length>1;
+  const target = multi ? `${client} (${names.map(n=>n.replace(client,"").trim()||n).join(", ")})` : (names[0] && names[0]!==client ? `${client} (${names[0]})` : client);
+  const incTxt = `${svc} ${ltIncTxt(tot)} 반영` + (multi ? ` (${sites.map(s=>`${s.name.replace(client,"").trim()||s.name} ${s.rateTxt}`).join(", ")})` : "");
+  const d=new Date((o.date||today())+"T00:00:00");
+  const ymd=`${d.getFullYear()}. ${String(d.getMonth()+1).padStart(2,"0")}. ${String(d.getDate()).padStart(2,"0")}.`;
+  const from=A.st.meta.from, to=A.st.meta.to;
+  const fd=s=>{ if(!s) return ""; const [y,m,dd]=s.split("-"); return `${y}년 ${m}월 ${dd}일`; };
+  const ceo=(o.ceo||S.coCeo||"").replace(/\s/g,"");
+  const coShort=ltCo(S);
+  const person=o.person!=null ? o.person : [S.coPerson, S.coPersonTitle].filter(Boolean).join(" ");
+  const ptel=o.personTel!=null ? o.personTel : (S.coPersonTel||"");
+  const contactA = coShort + (o.coTelNo?` (${o.coTelNo})`:"");
+  const contactB = person ? `${person}${ptel?`(${ptel})`:""}` : "";
+  return {
+    coFull: "주식회사 "+coShort, coAddr: o.coAddr||S.coAddr||"", coTel: o.coTelLine||"",
+    docPfx: o.docPfx||coShort.replace(/^에스텍/,"")||coShort, docNum: o.docNum||"", date: ymd,
+    client, ref: o.ref||"재계약 담당", title: o.title||`${Y}년도 ${svc} 용역 재계약 갱신 협조의 件`,
+    Y:String(Y), Y0:String(Y0), Ym1:String(Y0-1), svc, target, incTxt,
+    contact: contactB ? `${contactA} 또는 ${contactB}` : contactA, contactA, contactB,
+    att2: `${Y}년 도급비용 산출내역서${multi?`(${names.map(n=>n.replace(client,"").trim()||n).join("·")})`:""}`,
+    ceoSp: ceo.split("").join("   "),
+    mw_m1:mwCell(mw.m1), mw_0:mwCell(mw[0]), mw_1:mwCell(mw[1]), mi_m1:incCell("m1"), mi_0:incCell(0), mi_1:incCell(1), mr_m1:rCell("m1"), mr_0:rCell(0), mr_1:rCell(1),
+    mwLine:`${Y}년 법정 최저시급 ${won(mw[1])}원 ${mwFix?"확정":"적용"} (전년 대비 ${won(mwInc)}원, ${ltN(mwR,1)}% ${mwInc>=0?"인상":"인하"})`,
+    mwNote: mwFix?`${Y}년 인상 확정(고용노동부 고시)`:`${Y}년 적용 기준`, mwNoteH: mwFix?"인상확정":"적용 기준",
+    ins, insLine, fac, totRate:ltN(tot), totRateTxt:ltIncTxt(tot),
+    totM0:won(M0), totM1:won(M1),
+    period: `${fd(from)} ~ ${fd(to)} (${A.months===12?"1년간":A.months+"개월"})`,
+    sites, notes: sites.filter(s=>s.note).map(s=>({t:s.note}))
+  };
+}
+
+/* ── zip (STORE) ── */
+const LT_CRC=(()=>{ const t=new Uint32Array(256); for(let n=0;n<256;n++){ let c=n; for(let k=0;k<8;k++) c=c&1?0xEDB88320^(c>>>1):c>>>1; t[n]=c>>>0; } return t; })();
+function ltCrc(u){ let c=0xFFFFFFFF; for(let i=0;i<u.length;i++) c=LT_CRC[(c^u[i])&255]^(c>>>8); return (c^0xFFFFFFFF)>>>0; }
+function ltZip(files){   // [[path, Uint8Array]]
+  const enc=new TextEncoder(), parts=[], cen=[]; let off=0;
+  const d=new Date(), dt=((d.getHours()<<11)|(d.getMinutes()<<5)|(d.getSeconds()>>1)), dd=(((d.getFullYear()-1980)<<9)|((d.getMonth()+1)<<5)|d.getDate());
+  files.forEach(([p,data])=>{
+    const nm=enc.encode(p), crc=ltCrc(data), h=new DataView(new ArrayBuffer(30));
+    h.setUint32(0,0x04034b50,true); h.setUint16(4,20,true); h.setUint16(6,0x0800,true); h.setUint16(8,0,true); h.setUint16(10,dt,true); h.setUint16(12,dd,true);
+    h.setUint32(14,crc,true); h.setUint32(18,data.length,true); h.setUint32(22,data.length,true); h.setUint16(26,nm.length,true); h.setUint16(28,0,true);
+    parts.push(new Uint8Array(h.buffer),nm,data);
+    const c=new DataView(new ArrayBuffer(46));
+    c.setUint32(0,0x02014b50,true); c.setUint16(4,20,true); c.setUint16(6,20,true); c.setUint16(8,0x0800,true); c.setUint16(10,0,true); c.setUint16(12,dt,true); c.setUint16(14,dd,true);
+    c.setUint32(16,crc,true); c.setUint32(20,data.length,true); c.setUint32(24,data.length,true); c.setUint16(28,nm.length,true); c.setUint32(42,off,true);
+    cen.push(new Uint8Array(c.buffer),nm); off+=30+nm.length+data.length;
+  });
+  const csz=cen.reduce((s,x)=>s+x.length,0), e=new DataView(new ArrayBuffer(22));
+  e.setUint32(0,0x06054b50,true); e.setUint16(8,files.length,true); e.setUint16(10,files.length,true); e.setUint32(12,csz,true); e.setUint32(16,off,true);
+  return new Blob([...parts,...cen,new Uint8Array(e.buffer)]);
+}
+function ltUnzip(b64){
+  const z=XLSX.CFB.read(b64,{type:"base64"}), out=[];
+  z.FileIndex.forEach((f,i)=>{ if(f.type!==2 || /Sh33tJ5/.test(f.name)) return; out.push([z.FullPaths[i].replace(/^Root Entry\//,""), f.content instanceof Uint8Array?f.content:Uint8Array.from(f.content)]); });
+  return out;
+}
+
+/* ── {{토큰}} 채우기 엔진 (docx · hwpx 공통) ── */
+function ltFill(doc, kind, data){
+  const NS = kind==="docx" ? "http://schemas.openxmlformats.org/wordprocessingml/2006/main" : "http://www.hancom.co.kr/hwpml/2011/paragraph";
+  const RUN = kind==="docx" ? "r" : "run";
+  const all=(root,ln)=>Array.from(root.getElementsByTagNameNS(NS,ln));
+  const isEl=(n,ln)=>n.nodeType===1 && n.namespaceURI===NS && n.localName===ln;
+  const txt=el=>all(el,"t").map(t=>t.textContent).join("");
+  const own=p=>{ let s=""; for(const r of p.childNodes) if(isEl(r,RUN)) for(const t of r.childNodes) if(isEl(t,"t")) s+=t.textContent; return s; };
+  const get=(ctx,path)=>path.split(".").reduce((o,k)=>o==null?undefined:o[k],ctx);
+  const has=(ctx,path)=>get(ctx,path.split(".")[0])!==undefined;
+  const dropMarker=(el,mk)=>{ for(const t of all(el,"t")) if(t.textContent.includes(mk)){ t.textContent=t.textContent.replace(mk,""); return; } };
+  const repeat=(el,m,ctx)=>{ const items=get(ctx,m[1])||[]; items.forEach(it=>{ const c=el.cloneNode(true); dropMarker(c,m[0]); el.parentNode.insertBefore(c,el); fillNodes([c],{...ctx,[m[2]]:it}); }); el.parentNode.removeChild(el); };
+  const RX=/\{\{@([\w.]+):(\w+)\}\}/;
+  function fillNodes(nodes, ctx){
+    nodes.forEach(n=>{ (isEl(n,"tr")?[n]:all(n,"tr")).forEach(tr=>{ if(!tr.parentNode) return; const m=RX.exec(txt(tr)); if(m && has(ctx,m[1])) repeat(tr,m,ctx); }); });
+    nodes.forEach(n=>{ (isEl(n,"p")?[n]:all(n,"p")).forEach(p=>{ if(!p.parentNode) return; const m=RX.exec(own(p)); if(m && has(ctx,m[1])) repeat(p,m,ctx); }); });
+    const kill=new Set();
+    nodes.forEach(n=>{ if(!n.parentNode) return; (isEl(n,"t")?[n]:all(n,"t")).forEach(t=>{
+      const s=t.textContent; if(!s.includes("{{")) return;
+      t.textContent=s.replace(/\{\{(\?)?([\w.]+)\}\}/g,(a,q,path)=>{ if(!has(ctx,path)) return a; const v=get(ctx,path); const sv=v==null?"":String(v); if(q && !sv){ let p=t.parentNode; while(p && !isEl(p,"p")) p=p.parentNode; if(p) kill.add(p); } return sv; });
+    }); });
+    kill.forEach(p=>p.parentNode&&p.parentNode.removeChild(p));
+  }
+  // 1) 사업장 블록 {{#sites:s}} … {{/sites}}
+  all(doc,"p").filter(p=>/^\{\{#[\w.]+:\w+\}\}$/.test(own(p).trim())).forEach(start=>{
+    const m=/\{\{#([\w.]+):(\w+)\}\}/.exec(own(start)); let end=start.nextSibling, mid=[];
+    while(end && !(end.nodeType===1 && own(end).includes(`{{/${m[1]}}}`))){ mid.push(end); end=end.nextSibling; }
+    if(!end) return;
+    (get(data,m[1])||[]).forEach(it=>{ const cl=mid.map(n=>n.cloneNode(true)); cl.forEach(c=>end.parentNode.insertBefore(c,end)); fillNodes(cl,{...data,[m[2]]:it}); });
+    mid.forEach(n=>n.parentNode.removeChild(n)); start.parentNode.removeChild(start); end.parentNode.removeChild(end);
+  });
+  // 2) 나머지 반복 행·문단, 글자
+  fillNodes([doc.documentElement], data);
+}
+
+function ltParse(u8){ return new DOMParser().parseFromString(new TextDecoder().decode(u8),"application/xml"); }
+function ltSer(doc){ let s=new XMLSerializer().serializeToString(doc); if(!/^<\?xml/.test(s)) s='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+s; return new TextEncoder().encode(s); }
+
+function ltBuild(kind, data, opt){
+  if(!LETTER_TPL[kind]) throw new Error("공문 양식이 없습니다");
+  const files=ltUnzip(LETTER_TPL[kind]);
+  const main = kind==="docx" ? "word/document.xml" : "Contents/section0.xml";
+  const i=files.findIndex(f=>f[0]===main), doc=ltParse(files[i][1]);
+  ltFill(doc, kind, data);
+  if(kind==="hwpx"){
+    const HP="http://www.hancom.co.kr/hwpml/2011/paragraph";
+    Array.from(doc.getElementsByTagNameNS(HP,"linesegarray")).forEach(x=>x.parentNode.removeChild(x));   // 한컴이 줄 배치를 다시 계산
+    const ids=new Set();
+    Array.from(doc.getElementsByTagNameNS(HP,"tbl")).forEach(tb=>{
+      let id=tb.getAttribute("id"); while(ids.has(id)) id=String(1000000000+Math.floor(Math.random()*1000000000)); ids.add(id); tb.setAttribute("id",id);
+      const trs=Array.from(tb.childNodes).filter(n=>n.nodeType===1&&n.localName==="tr");
+      tb.setAttribute("rowCnt",String(trs.length));
+      trs.forEach((tr,ri)=>Array.from(tr.childNodes).filter(n=>n.nodeType===1&&n.localName==="tc").forEach(tc=>{ const a=Array.from(tc.childNodes).find(n=>n.nodeType===1&&n.localName==="cellAddr"); if(a) a.setAttribute("rowAddr",String(ri)); }));
+    });
+    if(!opt.stampImg) Array.from(doc.getElementsByTagNameNS(HP,"pic")).forEach(pc=>{ if(/binaryItemIDRef="image2"/.test(new XMLSerializer().serializeToString(pc))) pc.parentNode.removeChild(pc); });
+    else { const k=files.findIndex(f=>f[0]==="BinData/image2.bmp"); if(k>=0) files[k][1]=opt.stampImg.bmp; }
+    const prv=files.findIndex(f=>f[0]==="Preview/PrvText.txt");
+    if(prv>=0) files[prv][1]=new TextEncoder().encode(`${data.coFull}\r\n${data.docPfx} : 제${data.docNum}호  ${data.date}\r\n수  신 : ${data.client}\r\n제  목 : ${data.title}\r\n`);
+  } else if(opt.stampImg){ const k=files.findIndex(f=>f[0]==="word/media/image2.png"); if(k>=0) files[k][1]=opt.stampImg.png; }
+  else {
+    Array.from(doc.getElementsByTagNameNS("http://schemas.openxmlformats.org/wordprocessingml/2006/main","drawing")).forEach(dr=>{ if(/r:embed="rId6"/.test(new XMLSerializer().serializeToString(dr))){ const r=dr.parentNode; r.parentNode.removeChild(r); } });
+  }
+  files[i][1]=ltSer(doc);
+  return ltZip(files);
+}
+
+/* ── 직인 그림 (이 기기에만 보관 · 공개 저장소에는 넣지 않음) ── */
+const LT_STAMP_KEY="stec_letter_stamp";
+function ltStampGet(){ try{ return localStorage.getItem(LT_STAMP_KEY)||""; }catch(e){ return ""; } }
+function ltStampImg(dataUrl){
+  return new Promise((ok,no)=>{ const im=new Image(); im.onload=()=>{
+    const sc=Math.min(1,320/Math.max(im.width,im.height)), w=Math.max(1,Math.round(im.width*sc)), h=Math.max(1,Math.round(im.height*sc));
+    const cv=document.createElement("canvas"); cv.width=w; cv.height=h; const cx=cv.getContext("2d"); cx.drawImage(im,0,0,w,h);
+    const png=Uint8Array.from(atob(cv.toDataURL("image/png").split(",")[1]),c=>c.charCodeAt(0));
+    const px=cx.getImageData(0,0,w,h).data, row=(w*3+3)&~3, bmp=new Uint8Array(54+row*h), dv=new DataView(bmp.buffer);
+    bmp[0]=66; bmp[1]=77; dv.setUint32(2,bmp.length,true); dv.setUint32(10,54,true); dv.setUint32(14,40,true); dv.setInt32(18,w,true); dv.setInt32(22,h,true); dv.setUint16(26,1,true); dv.setUint16(28,24,true); dv.setUint32(34,row*h,true);
+    for(let y=0;y<h;y++) for(let x=0;x<w;x++){ const i=((h-1-y)*w+x)*4, a=px[i+3]/255, o=54+y*row+x*3; bmp[o]=Math.round(px[i+2]*a+255*(1-a)); bmp[o+1]=Math.round(px[i+1]*a+255*(1-a)); bmp[o+2]=Math.round(px[i]*a+255*(1-a)); }
+    ok({png,bmp}); }; im.onerror=()=>no(new Error("직인 그림을 읽을 수 없습니다")); im.src=dataUrl; });
+}
+
+/* ── 화면 ── */
+function ltCanUse(){ return !!(state && state.compare && state.roles.length); }
+function letterBtns(){ const on=ltCanUse(); ["btnLetter","btnLetter2"].forEach(id=>{ const b=document.getElementById(id); if(b) b.hidden=!on; }); }
+function openLetter(){
+  if(!ltCanUse()){ toast("‘갱신 견적’을 만들거나, 갱신 견적 엑셀을 ‘견적서 불러오기’로 연 뒤에 공문을 만들 수 있습니다"); return; }
+  const S=state.set, isBest=/에스텍베스트/.test(S.coName||"");
+  ltSites=[{st:JSON.parse(JSON.stringify(state)), name:state.meta.client||"사업장", note:""}];
+  const d=today().split("-");
+  const ov=document.createElement("div"); ov.className="qr-ov rn-ov"; ov.id="ltOv";
+  ov.innerHTML=`<div class="rn-pop" role="dialog" aria-modal="true" aria-labelledby="ltTitle">
+    <div class="rn-head"><div><h2 id="ltTitle">📄 갱신 공문 만들기 · Word · 한글</h2>
+      <p class="sub">이 견적(엑셀 기준)의 <b>${state.compare.year}년 ↔ ${state.meta.year}년</b> 최저시급 · 4대보험 요율 · 월 도급비 차이가 공문과 계약갱신(案)에 그대로 들어갑니다.</p></div>
+      <button class="btn sm ghost" data-x aria-label="닫기">✕</button></div>
+    <div class="rn-body">
+      <section class="rn-card"><h3><span class="rn-ic">✉️</span>공문 머리</h3>
+        <div class="lt-grid">
+          <label>문서번호 앞글자<input class="inp" id="lt_pfx" value="${esc(ltCo(S).replace(/^에스텍/,"")||ltCo(S))}"></label>
+          <label>문서번호<input class="inp" id="lt_no" value="${d[0]}-${d[1]}${d[2]}"></label>
+          <label>시행일<input class="inp" id="lt_date" type="date" value="${today()}"></label>
+          <label>참조<input class="inp" id="lt_ref" value="재계약 담당"></label>
+          <label class="w2">수신 (고객사)<input class="inp" id="lt_client" value="${esc(state.meta.client||"")}"></label>
+          <label class="w2">제목 <small>(비우면 자동: ${state.meta.year}년도 ○○ 용역 재계약 갱신 협조의 件)</small><input class="inp" id="lt_title" value=""></label>
+          <label>회사 대표전화<input class="inp" id="lt_tel" value="${isBest?"051-897-5280":""}" placeholder="051-000-0000"></label>
+          <label>머리글 전화·팩스 줄<input class="inp" id="lt_telline" value="${isBest?"[TEL : 051)897-5280 / FAX : 051)897-5284]":""}"></label>
+          <label>문의 담당자<input class="inp" id="lt_person" value="${esc([S.coPerson,S.coPersonTitle].filter(Boolean).join(" "))}"></label>
+          <label>담당자 연락처<input class="inp" id="lt_ptel" value="${esc(S.coPersonTel||"")}"></label>
+          <label>대표이사<input class="inp" id="lt_ceo" value="${esc(S.coCeo||"")}"></label>
+          <div class="w2" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12.5px">
+            <label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" id="lt_stamp"> 대표이사 직인 넣기</label>
+            <img id="lt_stampPrev" alt="" style="height:40px;display:none;border:1px solid var(--line);border-radius:6px;background:#fff">
+            <button class="btn sm" id="lt_stampPick" type="button">직인 그림 선택</button><input type="file" id="lt_stampFile" accept="image/*" hidden>
+            <span class="hint">직인 그림은 이 기기에만 보관됩니다 (프로그램·서버에 올라가지 않음)</span></div>
+        </div></section>
+      <section class="rn-card"><h3><span class="rn-ic">🏢</span>계약 대상 사업장 <small>여러 사업장(공장)을 한 공문으로 묶을 수 있습니다</small></h3>
+        <div class="lt-sites" id="ltSites"></div>
+        <div class="lt-add" style="margin-top:8px"><select class="inp" id="lt_saved" style="flex:1;min-width:180px"></select><button class="btn sm" id="lt_addSaved">저장된 견적 추가</button>
+          <button class="btn sm" id="lt_addFile">견적서 엑셀 추가</button><input type="file" id="lt_file" accept=".xlsx,.xlsm,.json" hidden></div></section>
+      <section class="rn-card"><h3><span class="rn-ic">📊</span>공문에 들어갈 숫자 미리보기</h3><div id="ltPrev"></div></section>
+      <div class="lt-btns"><button class="btn" data-x>닫기</button><button class="btn pri" id="lt_docx">Word 공문 (.docx)</button><button class="btn pri" id="lt_hwpx">한글 공문 (.hwpx)</button></div>
+    </div></div>`;
+  ov.addEventListener("click",e=>{ if(e.target===ov||e.target.closest("[data-x]")) ov.remove(); });
+  document.body.appendChild(ov);
+  const g=id=>document.getElementById(id);
+  const Y=+state.meta.year;
+  const others=savedList().map((q,i)=>({q,i})).filter(({q})=>q.state&&q.state.compare&&+q.state.meta.year===Y);
+  g("lt_saved").innerHTML=others.length?others.map(({q,i})=>`<option value="${i}">${esc(q.name)} · ${esc(q.at)}</option>`).join(""):`<option value="">(${Y}년 갱신 견적으로 저장된 것이 없습니다)</option>`;
+  g("lt_addSaved").onclick=()=>{ const v=g("lt_saved").value; if(v==="") return; const q=savedList()[+v]; try{ const st=normState(JSON.parse(JSON.stringify(q.state))); ltSiteCalc(st); ltSites.push({st,name:st.meta.client||q.name,note:""}); ltRender(); }catch(e){ toast(e.message||String(e)); } };
+  g("lt_addFile").onclick=()=>g("lt_file").click();
+  g("lt_file").onchange=async e=>{ const f=e.target.files[0]; e.target.value=""; if(!f) return;
+    try{ const res=await stateFromFile(f.name, await f.arrayBuffer()); if(res.kind!=="state") throw new Error("이 프로그램에서 내보낸 갱신 견적 엑셀만 추가할 수 있습니다");
+      ltSiteCalc(res.st); if(+res.st.meta.year!==Y) throw new Error(`${res.st.meta.year}년 견적입니다 · ${Y}년 갱신 견적만 함께 묶을 수 있습니다`);
+      ltSites.push({st:res.st,name:res.st.meta.client||f.name,note:""}); ltRender(); }catch(err){ toast(err.message||String(err)); } };
+  ["lt_client"].forEach(id=>g(id).oninput=ltPreview);
+  const stampShow=()=>{ const v=ltStampGet(), im=g("lt_stampPrev"); im.style.display=v?"":"none"; if(v) im.src=v; g("lt_stamp").checked=!!v && g("lt_stamp").checked; g("lt_stamp").disabled=!v; };
+  g("lt_stamp").checked=!!ltStampGet(); stampShow();
+  g("lt_stampPick").onclick=()=>g("lt_stampFile").click();
+  g("lt_stampFile").onchange=e=>{ const f=e.target.files[0]; e.target.value=""; if(!f) return; const rd=new FileReader(); rd.onload=()=>{ try{ localStorage.setItem(LT_STAMP_KEY,rd.result); }catch(err){ toast("이 기기에 직인을 보관하지 못했습니다(용량)"); } g("lt_stamp").checked=true; stampShow(); if(!ltStampGet()){ g("lt_stampPrev").src=rd.result; g("lt_stampPrev").style.display=""; g("lt_stamp").disabled=false; g("lt_stamp").checked=true; ltStampGet.tmp=rd.result; } }; rd.readAsDataURL(f); };
+  const opts=()=>({docPfx:g("lt_pfx").value.trim(), docNum:g("lt_no").value.trim(), date:g("lt_date").value, ref:g("lt_ref").value.trim(), client:g("lt_client").value.trim(), title:g("lt_title").value.trim(),
+    coTelNo:g("lt_tel").value.trim(), coTelLine:g("lt_telline").value.trim(), person:g("lt_person").value.trim(), personTel:g("lt_ptel").value.trim(), ceo:g("lt_ceo").value.trim(), stamp:g("lt_stamp").checked});
+  ltPreview.opts=opts;
+  const MEM="stec_letter_opts", memIds=["lt_ref","lt_tel","lt_telline","lt_person","lt_ptel","lt_ceo"];
+  try{ const m=JSON.parse(localStorage.getItem(MEM)||"{}"); memIds.forEach(id=>{ if(m[id]!=null) g(id).value=m[id]; }); }catch(e){}
+  const remember=()=>{ try{ const m={}; memIds.forEach(id=>m[id]=g(id).value); localStorage.setItem(MEM,JSON.stringify(m)); }catch(e){} };
+  const make=async kind=>{
+    remember();
+    try{ const o=opts(); const src=o.stamp?(ltStampGet()||ltStampGet.tmp||""):""; o.stampImg=src?await ltStampImg(src):null;
+      const data=ltData(o); const blob=ltBuild(kind,data,o);
+      const dd=(o.date||today()).slice(2).replace(/-/g,"");
+      await offerFile(`${dd} ${data.client||"고객사"} ${data.Y}년 계약갱신 공문.${kind}`, blob, kind==="docx"?"application/vnd.openxmlformats-officedocument.wordprocessingml.document":"application/hwp+zip");
+      toast(kind==="docx"?"Word 공문을 만들었습니다":"한글 공문(.hwpx)을 만들었습니다 · 한컴오피스 2014 이상에서 열립니다");
+    }catch(err){ console.error(err); toast("공문 생성 중 오류: "+(err&&err.message||err)); }
+  };
+  g("lt_docx").onclick=()=>make("docx"); g("lt_hwpx").onclick=()=>make("hwpx");
+  ltRender();
+}
+function ltRender(){
+  const box=document.getElementById("ltSites"); if(!box) return;
+  box.innerHTML=ltSites.map((x,i)=>{ const c=ltSiteCalc(x.st); return `<div class="lt-site">
+    <input class="inp" data-nm="${i}" value="${esc(x.name)}" aria-label="사업장 이름">
+    <div class="nums">${c.Y0}년 <b>${won(c.m0)}</b>원 → ${c.Y}년 <b>${won(c.m1)}</b>원 · <b>${ltIncTxt(c.rate)}</b><br>${c.heads0}명 → ${c.heads1}명 · 최저시급 ${won(c.C.set.minWage)} → ${won(c.S.minWage)}원</div>
+    ${i?`<button class="btn sm ghost" data-rm="${i}">빼기</button>`:`<span class="hint">지금 견적</span>`}
+    <input class="inp note" data-nt="${i}" value="${esc(x.note)}" placeholder="사업장 특이사항 (선택) · 예: 여성 미화원 근로시간 증가분(월 183시간 → 209시간) 반영"></div>`; }).join("");
+  box.querySelectorAll("[data-nm]").forEach(el=>el.oninput=()=>{ ltSites[+el.dataset.nm].name=el.value; ltPreview(); });
+  box.querySelectorAll("[data-nt]").forEach(el=>el.oninput=()=>{ ltSites[+el.dataset.nt].note=el.value; });
+  box.querySelectorAll("[data-rm]").forEach(el=>el.onclick=()=>{ ltSites.splice(+el.dataset.rm,1); ltRender(); });
+  ltPreview();
+}
+function ltPreview(){
+  const box=document.getElementById("ltPrev"); if(!box || !ltPreview.opts) return;
+  try{ const D=ltData(ltPreview.opts());
+    box.innerHTML=`<p class="hint" style="margin:0 0 6px">계약 대상 : <b>${esc(D.target)}</b> · 월 도급비 ${D.totM0} → ${D.totM1}원 (VAT 별도) · <b>${D.totRateTxt}</b></p>
+      <div class="tscroll"><table class="lt-fac"><thead><tr><th>구분</th><th>${D.Ym1}년</th><th>${D.Y0}년</th><th>${D.Y}년</th></tr></thead><tbody>
+      <tr><td>최저시급</td><td class="n">${D.mw_m1}</td><td class="n">${D.mw_0}</td><td class="n"><b>${D.mw_1}</b></td></tr>
+      <tr><td>인상률</td><td class="n">${D.mr_m1}</td><td class="n">${D.mr_0}</td><td class="n"><b>${D.mr_1}</b></td></tr></tbody></table></div>
+      <div class="tscroll" style="margin-top:8px"><table class="lt-fac"><thead><tr><th>4대보험 (사업주)</th><th>${D.Y0}년</th><th>${D.Y}년</th><th>변동</th></tr></thead><tbody>
+      ${D.ins.map(x=>`<tr><td>${esc(x.l)}</td><td class="n">${esc(x.p)}</td><td class="n"><b>${esc(x.c)}</b></td><td>${esc(x.d)}</td></tr>`).join("")}</tbody></table></div>
+      <div class="tscroll" style="margin-top:8px"><table class="lt-fac"><thead><tr><th>No</th><th>인상 요인</th><th>변동 내용</th><th>반영 인상률</th></tr></thead><tbody>
+      ${D.fac.map(f=>`<tr><td>${f.no}</td><td>${esc(f.l)}</td><td>${esc(f.d)}</td><td class="n">${f.v}</td></tr>`).join("")}
+      <tr class="s"><td colspan="3">합계 (${esc(D.svc)} 인상률)</td><td class="n">${D.totRate}%</td></tr></tbody></table></div>`;
+  }catch(e){ box.innerHTML=`<p class="hint">${esc(e.message||String(e))}</p>`; }
+}
+(function(){
+  const add=(afterId,id,cls)=>{ const a=document.getElementById(afterId); if(!a || document.getElementById(id)) return; const b=document.createElement("button"); b.type="button"; b.id=id; b.className=cls; b.textContent="갱신 공문"; b.title="갱신 견적(엑셀 기준) 전년 ↔ 익년도 차이로 계약갱신 협조 공문을 Word·한글로 만듭니다"; b.hidden=true; b.onclick=openLetter; a.insertAdjacentElement("afterend",b); };
+  const init=()=>{ add("btnXlsx","btnLetter","tbtn est-only"); add("btnXlsx2","btnLetter2","btn"); letterBtns(); };
+  if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",init); else init();
+  const _r=window.recalc; if(typeof recalc==="function"){ const orig=recalc; recalc=function(){ const v=orig.apply(this,arguments); try{ letterBtns(); }catch(e){} return v; }; }
+})();
+</script>

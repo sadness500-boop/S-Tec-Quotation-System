@@ -478,13 +478,13 @@ function openAcctMenu(){
       <dt>역할</dt><dd>${E(ROLE_KO[PROFILE.role])}</dd><dt>사용기한</dt><dd>${E(PROFILE.expires_at||'무기한')}</dd>
       <dt>이 기기</dt><dd>${E(deviceName())}</dd><dt>동기화</dt><dd>${E(syncState||'-')}</dd></dl>
     <div class="ag-menu">
-      ${isAdm?'<button id="mnAdmin">🛡️ 관리자 페이지 (사용자 · 접속기록 · 기기 · 설정)</button>':''}
+      ${(window.STEC_BAR&&STEC_BAR.consoleLabel())?'<button id="mnAdmin">'+(STEC_BAR.consoleKind()==='mgr'?'🧑‍💼 ':'🛡️ ')+STEC_BAR.consoleLabel()+'</button>':''}
       <button id="mnSync">🔄 지금 동기화</button>
       <button id="mnProfile">✏️ 내 정보 수정</button>
       <button id="mnPw">🔑 비밀번호 변경</button>
       <button id="mnOut">🚪 로그아웃</button>
     </div>`);
-  if(g('mnAdmin')) g('mnAdmin').onclick=()=>{ closePop(); openAdmin(); };
+  if(g('mnAdmin')) g('mnAdmin').onclick=()=>{ closePop(); if(window.STEC_BAR) STEC_BAR.openConsole(); else openAdmin(); };
   g('mnSync').onclick=async()=>{ closePop(); await syncPull(false); for(const k of SYNC_KEYS) if(lsGet(k)!=null) await pushKey(k); tip('동기화했습니다'); };
   g('mnPw').onclick=()=>{ closePop(); viewChangePw(false); };
   g('mnOut').onclick=()=>logout(true);

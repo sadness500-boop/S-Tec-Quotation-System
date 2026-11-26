@@ -896,7 +896,7 @@ aside.rail{gap:14px}
 <script>try{var _t=localStorage.getItem("stec_theme");if(_t==="light"||_t==="dark")document.documentElement.setAttribute("data-theme",_t)}catch(e){}</script>
 <header class="topbar">
   <button type="button" class="logo-fig" id="logoHome" title="메인화면으로" aria-label="메인화면으로"><img src="__APPICON__" alt="S-Tec 견적 시스템 앱 아이콘"></button>
-  <div class="brand" title="에스텍 그룹 용역인력 견적시스템"><b>S-Tec-Quotation-System</b><span class="ver">Ver 8.0</span></div>
+  <div class="brand" title="에스텍 그룹 용역인력 견적시스템"><b>S-Tec-Quotation-System</b><span class="ver">Ver 8.1</span></div>
   <div class="sp"><div class="gstrip" id="gstrip" aria-hidden="true"></div></div>
   <div class="tb-home home-only" id="tbHome"></div>
   <div class="tb-actions">
@@ -1215,9 +1215,9 @@ const RATES = {
         note:"2025년 · 최저시급 10,030원 · 건강 7.09% · 장기요양 12.95% · 국민연금 9% · 고용(실업급여) 0.9%", tentative:["wageClaim","asb","indCom"]},
   2026:{minWage:10320, health:3.595, ltc:13.14, pension:4.75, ui:0.9, indCom:0.06, wageClaim:0.09, asb:0.006,
         note:"2026년 확정 · 최저시급 10,320원 · 건강 7.19%(사업주 3.595%) · 장기요양 건보료의 13.14% · 국민연금 9.5%(4.75%) · 고용 실업급여 0.9%+규모별 · 산재 출퇴근 0.06% · 임금채권 0.09% · 석면 0.006%", tentative:[]},
-  2027:{minWage:10700, health:3.595, ltc:13.14, pension:5.0, ui:1.0, indCom:0.06, wageClaim:0.09, asb:0.006,
-        note:"2027년 · 최저시급 10,700원(확정) · 건강 7.19% 동결(2026.9.8 확정) · 국민연금 10%(연금개혁법, 사업주 5.0%) · 고용 실업급여 1.0%(정부 개편안, 연내 법령개정 예정) · 장기요양·산재·임금채권·석면은 미고시 → 2026년 값 잠정", tentative:["ltc","ui","indCom","wageClaim","asb"]},
-  2028:{minWage:11021, health:3.595, ltc:13.14, pension:5.25, ui:1.0, indCom:0.06, wageClaim:0.09, asb:0.006,
+  2027:{minWage:10700, health:3.595, ltc:13.90, pension:5.0, ui:1.0, indCom:0.06, wageClaim:0.09, asb:0.006,
+        note:"2027년 · 최저시급 10,700원(확정) · 건강 7.19% 동결(2026.9.8 확정) · 국민연금 10%(연금개혁법, 사업주 5.0%) · 고용 실업급여 1.0%(정부 개편안, 연내 법령개정 예정) · 장기요양 건보료의 13.90%(2026.10.30 장기요양위원회 의결) · 산재·임금채권·석면은 미고시 → 2026년 값 잠정", tentative:["ui","indCom","wageClaim","asb"]},
+  2028:{minWage:11021, health:3.595, ltc:13.90, pension:5.25, ui:1.0, indCom:0.06, wageClaim:0.09, asb:0.006,
         note:"2028년 · 국민연금 10.5%(연금개혁법, 사업주 5.25%)만 확정 · 최저시급은 3% 인상 예상치 · 나머지는 2027년 값 잠정", tentative:["minWage","health","ltc","ui","indCom","wageClaim","asb"]}
 };
 const MINWAGE = Object.fromEntries(Object.entries(RATES).map(([y,r])=>[y,r.minWage]));
@@ -2160,10 +2160,12 @@ function renderKakao(){
     : `<span class="pill w">카카오맵 미연결 · OSM 지도로 검색</span> <button type="button" class="btn sm" id="kkEdit">카카오맵 연결</button> <span class="hint">${why?esc(why)+" · ":""}검색 목록에서 카카오맵·네이버지도로 바로 열 수 있습니다</span>`;
   $("#kkEdit").onclick=()=>{ const box=$("#kakaoBox"); box.hidden=!box.hidden; if(!box.hidden){ $("#kk_key").value=kakaoKey(); $("#kk_js").value=kakaoJsLocal(); $("#kk_js").focus(); } };
 }
-function siteMode(){ return state.meta.mode==="renew"?"renew":"new"; }
+/* 세부 기능(신규 견적 new / 갱신 견적 renew) — 제작자·조직 관리자가 연 기능만 보입니다. 지정이 없으면 둘 다 사용 */
+function featAllowed(m){ const f=window.APP_ACCESS&&window.APP_ACCESS.features; return !Array.isArray(f)||!f.length||f.includes(m); }
+function siteMode(){ let md=state.meta.mode==="renew"?"renew":"new"; if(!featAllowed(md)){ const o=md==="new"?"renew":"new"; if(featAllowed(o)) md=o; } return md; }
 function renderMode(){
-  const md=siteMode();
-  $$(".seg [data-mode]").forEach(b=>b.setAttribute("aria-checked",b.dataset.mode===md));
+  const md=siteMode(); state.meta.mode=md;
+  $$(".seg [data-mode]").forEach(b=>{ b.setAttribute("aria-checked",b.dataset.mode===md); b.hidden=!featAllowed(b.dataset.mode); });
   $("#modeSub").textContent = md==="new"
     ? "신규 영업 대상 사업장을 인터넷 지도에서 전국 검색합니다. 결과를 누르면 위치와 세부현황이 표시됩니다. (이미 에스텍 그룹이 운영 중인 곳은 표시해 드립니다)"
     : "기존 에스텍 그룹 사업장(등록 151곳)에서 찾습니다. 재계약·갱신 견적에 사용하세요.";
@@ -2204,6 +2206,7 @@ function paintSugg(hit){
   box.innerHTML=h; box.hidden=false;
   box.querySelectorAll("[data-sid]").forEach(b=>b.onmousedown=e=>{ e.preventDefault(); selectSite(+b.dataset.sid); });
   box.querySelectorAll("[data-oid]").forEach(b=>b.onmousedown=e=>{ e.preventDefault(); selectOnline(sgOnline[+b.dataset.oid]); });
+  box.querySelectorAll("[data-tomode]").forEach(b=>{ if(!featAllowed(b.dataset.tomode)) b.remove(); });
   box.querySelectorAll("[data-tomode]").forEach(b=>b.onmousedown=e=>{ e.preventDefault(); state.meta.mode=b.dataset.tomode; renderMode(); suggest(); });
 }
 async function kakaoSearch(q,key,size=15){
@@ -5054,6 +5057,7 @@ function boot(){
       msg.textContent="연결되었습니다 ✓"; setTimeout(()=>$("#kakaoBox").hidden=true,900); }
     catch(e){ msg.textContent=(e&&e.kakao)||(inFrame?"이 화면에서는 외부 연결이 차단됩니다. 웹 주소나 PC용 HTML 파일에서 설정하세요.":"카카오 서버에 연결할 수 없습니다."); } };
   $("#kk_del").onclick=()=>{ try{ localStorage.removeItem("stec_kakao_key"); localStorage.removeItem("stec_kakao_js"); }catch(e){} $("#kk_key").value=""; $("#kk_js").value=""; $("#kk_msg").textContent="삭제했습니다"; kkSdk=null; kakaoAuto(); };
+  window.addEventListener("app-access",()=>{ try{ renderMode(); }catch(e){} });
   $$(".seg [data-mode]").forEach(b=>b.onclick=()=>{ state.meta.mode=b.dataset.mode; renderMode(); persistDraft(); if($("#m_client").value.trim()) suggest(); $("#m_client").focus(); });
   $("#btnNew").onclick=openRenew;
   $("#btnBlank").onclick=openNewQuote;
